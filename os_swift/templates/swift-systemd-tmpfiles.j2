@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+
+D /var/lock/{{ item.value.program_binary | default(item.value.program_name) }} 2755 {{ swift_system_user_name }} {{ swift_system_group_name }}
+D /var/run/{{ item.value.program_binary | default(item.value.program_name) }} 2755 {{ swift_system_user_name }} {{ swift_system_group_name }}

@@ -1,0 +1,35 @@
+---
+# Copyright 2016, Logan Vig <logan2211@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+etcd_package_state: latest
+
+etcd_cluster_group: etcd
+#install type can be server or proxy. servers join the cluster as full members, while proxies operate as cluster clients
+etcd_install_type: server
+
+etcd_initial_token: etcd-cluster-01
+etcd_data_dir: /var/lib/etcd
+etcd_conf_dir: /etc/etcd
+
+etcd_ssl_cert: "{{ etcd_conf_dir }}/etcd.pem"
+etcd_ssl_key: "{{ etcd_conf_dir }}/etcd.key"
+etcd_ssl_ca_cert: "/usr/local/share/ca-certificates/etcd-ca.pem"
+
+etcd_client_ports:
+  - 2379
+  - 4001
+etcd_peer_port: 2380
+
+etcd_packages: []

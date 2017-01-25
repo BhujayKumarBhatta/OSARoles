@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+server {
+
+    listen {{ keystone_nginx_ports[item] }};
+
+    {% if keystone_ssl | bool and keystone_service_adminuri_proto == "https" %}
+    ssl                     on;
+    ssl_protocols           {{ keystone_ssl_protocol }};
+    ssl_certificate         {{ keystone_ssl_cert }};
+    ssl_certificate_key     {{ keystone_ssl_key }};
+    ssl_trusted_certificate {{ keystone_ssl_ca_cert }};
+    ssl_ciphers             {{ keystone_ssl_cipher_suite }};
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache   shared:SSL:2m;
+    ssl_session_timeout 2m;
+    {%- endif %}
+
+    {% for line in keystone_nginx_extra_conf %}
+    {{ line }}
+    {%- endfor %}
+
+    access_log  /var/log/nginx/{{ item }}-access.log custom;
+    error_log   /var/log/nginx/{{ item }}-error.log info;
+
+    location / {
+        try_files   $uri @yourapplication;
+    }
+
+    location @yourapplication {
+        include     uwsgi_params;
+        uwsgi_pass  127.0.0.1:{{ keystone_uwsgi_ports[item]['socket'] }};
+        uwsgi_param SCRIPT_NAME '';
+    }
+}

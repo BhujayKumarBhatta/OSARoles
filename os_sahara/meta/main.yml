@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  author: flaviodsr
+  description: Installation and setup of sahara
+  company: LSD/UFCG
+  license: Apache2
+  min_ansible_version: 2.0
+  platforms:
+    - name: Ubuntu
+      versions:
+        - trusty
+        - xenial
+  categories:
+    - cloud
+    - python
+    - sahara
+    - development
+    - openstack
+dependencies:
+  - pip_install
+  - role: apt_package_pinning
+    when:
+      - ansible_pkg_mgr == 'apt'
+  - galera_client
+  - openstack_openrc

@@ -1,0 +1,49 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Ansible version and LXC backing store check
+  fail:
+    msg: "Using overlayfs is not supported when using Ansible version < 2"
+  when:
+    - lxc_container_backing_store is defined
+    - lxc_container_backing_store == "overlayfs"
+    - ansible_version.major < 2
+
+- name: Kernel version and LXC backing store check
+  debug:
+    msg: "Using overlayfs is not recommended when using Kernel version < 3.18"
+  when:
+    - lxc_container_backing_store is defined
+    - lxc_container_backing_store == "overlayfs"
+    - hostvars[physical_host]['ansible_kernel'] | version_compare('3.18.0-0-generic', '<')
+
+- name: Gather variables for each operating system
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ hostvars[physical_host]['ansible_distribution'] | lower }}-{{ hostvars[physical_host]['ansible_distribution_version'] | lower }}.yml"
+    - "{{ hostvars[physical_host]['ansible_distribution'] | lower }}-{{ hostvars[physical_host]['ansible_distribution_major_version'] | lower }}.yml"
+    - "{{ hostvars[physical_host]['ansible_os_family'] | lower }}-{{ hostvars[physical_host]['ansible_distribution_major_version'] | lower }}.yml"
+    - "{{ hostvars[physical_host]['ansible_distribution'] | lower }}.yml"
+    - "{{ hostvars[physical_host]['ansible_os_family'] | lower }}.yml"
+  tags:
+    - always
+
+- include: container_create.yml
+  when:
+    - physical_host is defined
+    - inventory_hostname is defined
+    - physical_host != inventory_hostname
+  tags:
+    - lxc-container

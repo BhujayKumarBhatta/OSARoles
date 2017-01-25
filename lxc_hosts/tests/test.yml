@@ -1,0 +1,89 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Playbook for role testing
+  hosts: localhost
+  connection: local
+  pre_tasks:
+    - name: Show host facts
+      debug:
+        var: hostvars
+    - name: First ensure apt cache is always refreshed
+      apt:
+        update_cache: yes
+      when:
+        - ansible_pkg_mgr == 'apt'
+    - name: Ensure root ssh key
+      user:
+        name: "{{ ansible_env.USER | default('root') }}"
+        generate_ssh_key: "yes"
+        ssh_key_bits: 2048
+        ssh_key_file: ".ssh/id_rsa"
+    - name: get the calling users key
+      command: cat ~/.ssh/id_rsa.pub
+      register: key_get
+    - set_fact:
+        lxc_container_ssh_key: key_get.stdout
+  roles:
+    - role: "lxc_hosts"
+      lxc_net_address: 10.100.100.1
+      lxc_net_bridge: lxcbr0
+      lxc_kernel_options:
+        - { key: 'fs.inotify.max_user_instances', value: 1024 }
+      lxc_container_cache_files:
+        - src: files/container-file-copy-test.txt
+          dest: /tmp/file-copied-from-deployment-host.txt
+  post_tasks:
+    - name: Get sysctl content
+      shell: |
+        cat /etc/sysctl.conf
+      register: sysctl_content
+    - name: Check for lxc bridge
+      stat:
+        path: /sys/class/net/lxcbr0/bridge/bridge_id
+      register: lxc_bridge_file
+    - name: Check dnsmasq is running
+      shell: ps auxfww | grep -w 'dnsmasq -u lxc-dnsmasq'
+    - name: DEBIAN - Get deployed interface file contents, without Ansible managed line
+      shell: |
+        cat /etc/network/interfaces.d/lxc-net-bridge.cfg | tail -n +3
+      register: _debian_interface_file
+      when: ansible_os_family | lower == "debian"
+    - name: DEBIAN - interface file fact
+      set_fact:
+        interface_file: "{{ _debian_interface_file.stdout }}"
+      when: ansible_os_family | lower == "debian"
+    - name: RHEL - Get deployed interface file contents, without Ansible managed line
+      shell: |
+        cat /etc/sysconfig/network-scripts/ifcfg-lxcbr0 | tail -n +3
+      register: _rhel_interface_file
+      when: ansible_os_family | lower == "redhat"
+    - name: RHEL - interface file fact
+      set_fact:
+        interface_file: "{{ _rhel_interface_file.stdout }}"
+      when: ansible_os_family | lower == "redhat"
+    - name: Get bridge interface facts
+      setup:
+        filter: ansible_lxcbr0
+      register: lxcbr0_facts
+    - name: Check role functions
+      assert:
+        that:
+          - interface_file | search('.*lxcbr0.*')
+          - interface_file | search('.*10.100.100.1.*')
+          - interface_file | search('.*255.255.255.0.*')
+          - sysctl_content.stdout | search('fs.inotify.max_user_instances.*')
+          - "lxc_bridge_file.stat.exists"
+          - "lxcbr0_facts.ansible_facts.ansible_lxcbr0.ipv4.address | match('10.100.100.1')"

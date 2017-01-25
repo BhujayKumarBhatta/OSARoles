@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+[Unit]
+Description=swift openstack service
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User={{ swift_system_user_name }}
+Group={{ swift_system_group_name }}
+
+{% if item.value.program_override is defined %}
+ExecStart={{ item.value.program_override }} {{ item.value.program_config_options|default('') }}
+{% else %}
+ExecStart={{ swift_bin }}/{{ item.value.program_binary | default(item.value.program_name) }} {{ item.value.program_config_options|default('') }}
+{% endif %}
+
+# Give a reasonable amount of time for the server to start up/shut down
+TimeoutSec=300
+Restart=on-failure
+RestartSec=150
+
+[Install]
+WantedBy=multi-user.target

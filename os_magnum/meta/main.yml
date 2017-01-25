@@ -1,0 +1,28 @@
+---
+galaxy_info:
+  author: OpenStack-Ansible
+  description: Deploy Magnum with OpenStack Ansible
+  company: OpenStack
+  license: Apache-2.0
+  min_ansible_version: 2.0
+  version: 0.1.0
+  platforms:
+  - name: Ubuntu
+    versions:
+    - trusty
+    - xenial
+  # Below are all categories currently available. Just as with
+  # the platforms above, uncomment those that apply to your role.
+  galaxy_tags:
+   - cloud
+   - openstack
+   - python
+   - magnum
+
+dependencies:
+  - pip_install
+  - role: apt_package_pinning
+    when:
+      - ansible_pkg_mgr == 'apt'
+  - galera_client
+

@@ -1,0 +1,55 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Determine first available nova compute host
+  set_fact:
+    first_available_compute: "{{ groups['nova_compute'] | intersect(play_hosts) | first }}"
+  tags:
+    - nova-key
+    - nova-key-distribute
+
+# The authorized key file script will be generated locally and copied to all known
+#  compute hosts within the environment. This script will add a key to the nova
+#  user's .ssh/authorized_keys file if it's not already found.
+- name: Drop authorized keys file script locally
+  template:
+    src: "nova-key-insert.sh.j2"
+    dest: "/var/tmp/openstack-nova-key.sh"
+    mode: "0755"
+  delegate_to: localhost
+  when: inventory_hostname == first_available_compute
+  tags:
+    - nova-key
+    - nova-key-distribute
+
+- name: Copy templated authorized keys file script
+  copy:
+    src: "/var/tmp/openstack-nova-key.sh"
+    dest: "/usr/local/bin/openstack-nova-key.sh"
+    mode: "0755"
+  tags:
+    - nova-key
+    - nova-key-distribute
+
+- name: Run authorized keys file script
+  command: "/usr/local/bin/openstack-nova-key.sh"
+  register: key_create
+  changed_when: key_create.rc == 3
+  failed_when:
+    - key_create.rc != 3
+    - key_create.rc != 0
+  tags:
+    - nova-key
+    - nova-key-distribute

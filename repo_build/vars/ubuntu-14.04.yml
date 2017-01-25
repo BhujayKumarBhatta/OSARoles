@@ -1,0 +1,45 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+## APT Cache options
+cache_timeout: 600
+
+# Ubuntu Cloud Archive variables
+# There are no UCA packages for Trusty beyond Mitaka, so the selected
+# release here has to remain at Mitaka.
+uca_openstack_release: mitaka
+uca_repo_dist: "{{ ansible_lsb.codename }}-updates/{{ uca_openstack_release }}"
+uca_repo: "deb {{ uca_apt_repo_url }} {{ uca_repo_dist }} main"
+
+repo_build_distro_packages:
+  - build-essential
+  - cmake
+  - git
+  - liberasurecode-dev      # required to build pyeclib
+  - libffi-dev              # required to build xattr
+  - libjpeg-dev             # required to build pillow
+  - libkrb5-dev             # required to build pykerberos
+  - libldap2-dev            # required to build python-ldap
+  - libmariadbclient-dev    # required to build MySQL-python
+  - libpq-dev               # required to build psycopg2
+  - libsasl2-dev            # required to build python-ldap
+  - libsqlite3-dev          # required to build pysqlite
+  - libssl-dev              # required to build cryptography
+  - libvirt-dev             # required to build libvirt-python
+  - libxslt1-dev            # required to build lxml
+  - lxc-dev                 # required to build lxc-python2
+  - pkg-config
+  - python-dev
+  - swig

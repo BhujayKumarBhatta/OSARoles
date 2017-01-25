@@ -1,0 +1,64 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Install repo server
+  hosts: repo_all
+  user: root
+  roles:
+    - "repo_server"
+  post_tasks:
+
+    - name: Check if the git cache exists on deployment host
+      local_action:
+        module: stat
+        path: "/opt/git/openstack"
+      register: _local_git_cache
+
+    - name: Pre-cache the keystone git repository (from git cache)
+      synchronize:
+        src: "/opt/git/openstack/keystone/"
+        dest: "/var/www/repo/openstackgit/keystone"
+      when:
+        - _local_git_cache.stat is defined
+        - _local_git_cache.stat.exists
+
+    - name: Pre-cache the keystone git repository (from git source)
+      git:
+        repo: "https://git.openstack.org/openstack/keystone"
+        dest: "/var/www/repo/openstackgit/keystone"
+        clone: yes
+        update: yes
+      become: yes
+      become_user: "{{ repo_build_service_user_name }}"
+      when:
+        - _local_git_cache.stat is defined
+        - not _local_git_cache.stat.exists
+
+    - name: Pre-cache the tempest git repository (from git source)
+      git:
+        repo: "https://git.openstack.org/openstack/tempest"
+        dest: "/var/www/repo/openstackgit/tempest"
+        clone: yes
+        update: yes
+      become: yes
+      become_user: "{{ repo_build_service_user_name }}"
+
+    - name: Intentionally set the keystone repo remote origin to github
+      shell: "git remote set-url origin https://github.com/openstack/keystone.git"
+      args:
+        chdir: "/var/www/repo/openstackgit/keystone"
+
+  vars_files:
+    - test-vars.yml

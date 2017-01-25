@@ -1,0 +1,76 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Run functional tests
+  hosts: galera_all
+  user: root
+  gather_facts: true
+  tasks:
+    - name: Check cluster incoming addresses
+      command: |
+        mysql -h {{ ansible_host }} \
+              -p"{{ galera_root_password }}" \
+              -e "show status like 'wsrep_incoming_addresses';" \
+              --silent \
+              --skip-column-names
+      register: wsrep_incoming_addresses
+    - name: Check cluster local state
+      command: |
+        mysql -h {{ ansible_host }} \
+              -p"{{ galera_root_password }}" \
+              -e "show status like 'wsrep_local_state_comment';" \
+              --silent \
+              --skip-column-names
+      register: wsrep_local_state_comment
+    - name: Check cluster evs state
+      command: |
+        mysql -h {{ ansible_host }} \
+              -p"{{ galera_root_password }}" \
+              -e "show status like 'wsrep_evs_state';" \
+              --silent \
+              --skip-column-names
+      register: wsrep_evs_state
+    - name: Check contents
+      assert:
+        that:
+          - "'Synced' in wsrep_local_state_comment.stdout"
+          - "'OPERATIONAL' in wsrep_evs_state.stdout"
+          - "'10.1.0.2' in wsrep_incoming_addresses.stdout"
+          - "'10.1.0.3' in wsrep_incoming_addresses.stdout"
+          - "'10.1.0.4' in wsrep_incoming_addresses.stdout"
+    - name: Create DB for service on 10.1.0.2
+      mysql_db:
+        login_user: "{{ galera_root_user }}"
+        login_password: "{{ galera_root_password }}"
+        login_host: "10.1.0.2"
+        name: "OSA-test"
+        state: "present"
+      when: ansible_host == '10.1.0.2'
+    - name: Grant access to the DB on 10.1.0.3
+      mysql_user:
+        login_user: "{{ galera_root_user }}"
+        login_password: "{{ galera_root_password }}"
+        login_host: "10.1.0.3"
+        name: "osa-tester"
+        password: "tester-secrete"
+        host: "{{ item }}"
+        state: "present"
+        priv: "OSA-test.*:ALL"
+      with_items:
+        - "localhost"
+        - "%"
+      when: ansible_host == '10.1.0.3'
+  vars_files:
+    - common/test-vars.yml

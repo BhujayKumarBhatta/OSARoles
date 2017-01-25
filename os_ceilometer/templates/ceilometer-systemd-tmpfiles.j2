@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+
+D /var/lock/{{ item.0.service_name }} 2755 {{ ceilometer_system_user_name }} {{ ceilometer_system_group_name }}
+D /var/run/{{ item.0.service_name }} 2755 {{ ceilometer_system_user_name }} {{ ceilometer_system_group_name }}

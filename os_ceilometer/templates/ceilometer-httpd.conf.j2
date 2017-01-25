@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+
+<VirtualHost *:{{ ceilometer_service_port }}>
+    WSGIDaemonProcess ceilometer-api lang='en_US.UTF-8' locale='en_US.UTF-8' user={{ ceilometer_system_user_name }} group={{ ceilometer_system_group_name }} processes={{ ceilometer_wsgi_processes }} threads={{ ceilometer_wsgi_threads }} display-name=%{GROUP}
+    WSGIProcessGroup ceilometer-api
+    WSGIScriptAlias / /var/www/cgi-bin/ceilometer/ceilometer-api
+    WSGIApplicationGroup  %{GLOBAL}
+
+    <IfVersion >= 2.4>
+      ErrorLogFormat "%{cu}t %M"
+    </IfVersion>
+
+    LogLevel  {{  ceilometer_apache_log_level }}
+    ErrorLog  /var/log/ceilometer/ceilometer-apache-error.log
+    CustomLog /var/log/ceilometer/ceilometer-access.log combined
+</VirtualHost>

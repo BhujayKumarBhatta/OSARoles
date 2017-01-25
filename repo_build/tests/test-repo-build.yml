@@ -1,0 +1,140 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Build repo
+  hosts: repo_all
+  user: root
+  pre_tasks:
+    - name: Check if this is an OpenStack-CI nodepool instance
+      stat:
+        path: /etc/nodepool/provider
+      register: nodepool
+      delegate_to: localhost
+    - name: Determine the existing Ubuntu repo URL (only on OpenStack-CI)
+      shell: 'awk "/^deb .*ubuntu\/? {{ ansible_distribution_release }} main/ {print \$2; exit}" /etc/apt/sources.list'
+      register: ubuntu_repo_url
+      changed_when: false
+      when:
+        - ansible_pkg_mgr == 'apt'
+        - nodepool.stat.exists | bool
+      delegate_to: localhost
+    - name: Set Ubuntu Cloud Archive repo URL based on discovered information
+      set_fact:
+        uca_apt_repo_url: "{{ ubuntu_repo_url.stdout | netorigin }}/ubuntu-cloud-archive"
+      when:
+        - ansible_pkg_mgr == 'apt'
+        - nodepool.stat.exists | bool
+  roles:
+    - "repo_build"
+  post_tasks:
+    - name: List the files in the venv folder
+      command: ls -1 /var/www/repo/venvs/{{ repo_build_release_tag }}/{{ ansible_distribution | lower }}/
+      register: venv_folder_content
+    - name: Ensure that the keystone venv is present
+      assert:
+        that: "'keystone-{{ repo_build_release_tag }}-{{ ansible_architecture | lower }}.tgz' in venv_folder_content.stdout"
+    - name: Ensure that the tempest venv is present
+      assert:
+        that: "'tempest-{{ repo_build_release_tag }}-{{ ansible_architecture | lower }}.tgz' in venv_folder_content.stdout"
+    - name: Ensure that the nova venv is NOT present
+      assert:
+        that: "'nova-{{ repo_build_release_tag }}-{{ ansible_architecture | lower }}.tgz' not in venv_folder_content.stdout"
+    - name: List the files in the git folder
+      command: ls -1 /var/www/repo/openstackgit/
+      register: git_folder_content
+    - name: Ensure that the keystone git repo is present
+      assert:
+        that: "'keystone' in git_folder_content.stdout"
+    - name: Ensure that the tempest git repo is present
+      assert:
+        that: "'tempest' in git_folder_content.stdout"
+    - name: Ensure that the requirements git repo is present
+      assert:
+        that: "'requirements' in git_folder_content.stdout"
+    - name: Ensure that the nova git repo is NOT present
+      assert:
+        that: "'nova' not in git_folder_content.stdout"
+    - name: Slurp upper constraints
+      slurp:
+        src: "{{ repo_build_git_dir }}/requirements/upper-constraints.txt"
+      register: slurp_upper_constraints
+    - name: Slurp requirements constraints
+      slurp:
+        src: "{{ repo_build_release_path }}/{{ repo_build_release_tag }}/requirements_constraints.txt"
+      register: slurp_requirements_constraints
+    - name: Set fact for requirements constraints content
+      set_fact:
+         requirements_constraints_content: "{{ slurp_requirements_constraints.content | b64decode }}"
+    - name: Set fact for upper constraints content
+      set_fact:
+        upper_constraints_list: >
+          {%- set constraints = [] %}
+          {%- for constraint_raw in slurp_upper_constraints.content | b64decode | splitlines %}
+          {%-   set constraint_name = constraint_raw | regex_replace('===.*', '') %}
+          {%-   set constraint_data = constraint_raw | regex_replace('.*===', '') %}
+          {%-   set constraint_name_normalized = constraint_name | replace('-', '_') | lower %}
+          {%-   set constraint = constraint_name_normalized + '<=' + constraint_data %}
+          {%-   set _ = constraints.append(constraint) %}
+          {%- endfor %}
+          {{- constraints -}}
+    - name: Set fact for upper constraints override
+      set_fact:
+        upper_constraints_override_list: >
+          {%- set override_packages = [] %}
+          {%- for override in repo_build_upper_constraints_overrides %}
+          {%-   set name = override | regex_replace('(\[|>=|<=|>|<|==|~=|!=).*$','') %}
+          {%-   set name_normalized = name | replace('-', '_') | lower %}
+          {%-   set _ = override_packages.append(name_normalized) %}
+          {%- endfor %}
+          {{- override_packages -}}
+    - name: Set fact for global pins
+      set_fact:
+        global_pins_list: >
+          {%- set global_pins = [] %}
+          {%- for pin in local_packages.results.0.item.role_requirement_files.global_pins.pinned_packages %}
+          {%-   set name = pin | regex_replace('(\[|>=|<=|>|<|==|~=|!=).*$','') %}
+          {%-   set name_normalized = name | replace('-', '_') | lower %}
+          {%-   set _ = global_pins.append(name_normalized) %}
+          {%- endfor %}
+          {{- global_pins -}}
+    - name: Set facts for packages built from git sources
+      set_fact:
+        git_package_list: >
+          {%- set git_packages = [] %}
+          {%- for remote_package_part in local_packages.results.0.item.remote_package_parts %}
+          {%-   set _ = git_packages.append(remote_package_part['egg_name']) %}
+          {%- endfor %}
+          {{- git_packages -}}
+    - name: Ensure that upper constraints from the OpenStack requirements repo are complete
+      assert:
+        that: item in requirements_constraints_content
+      with_items: "{{ upper_constraints_list }}"
+      when:
+        - repo_build_use_upper_constraints | bool
+        - item | regex_replace('(\[|>=|<=|>|<|==|~=|!=).*$','') not in upper_constraints_override_list
+        - item | regex_replace('(\[|>=|<=|>|<|==|~=|!=).*$','') not in global_pins_list
+        - item | regex_replace('(\[|>=|<=|>|<|==|~=|!=).*$','') not in git_package_list
+    - name: Ensure that global pins have been applied
+      assert:
+        that: item in requirements_constraints_content
+      with_items: "{{ local_packages.results.0.item.role_requirement_files.global_pins.pinned_packages }}"
+      when:
+        - item | regex_replace('(\[|>=|<=|>|<|==|~=|!=).*$','') not in upper_constraints_override_list
+    - name: Ensure that upper constraints overrides are applied
+      assert:
+        that: item in requirements_constraints_content
+      with_items: "{{ repo_build_upper_constraints_overrides }}"
+  vars_files:
+    - test-vars.yml

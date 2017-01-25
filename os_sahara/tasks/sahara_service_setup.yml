@@ -1,0 +1,105 @@
+---
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Create a service
+- name: Ensure sahara service
+  keystone:
+    command: "ensure_service"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    service_name: "{{ sahara_service_name }}"
+    service_type: "{{ sahara_service_type }}"
+    description: "{{ sahara_service_description }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 2
+
+# Create an admin user
+- name: Ensure sahara user
+  keystone:
+    command: "ensure_user"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    user_name: "{{ sahara_service_user_name }}"
+    tenant_name: "{{ sahara_service_project_name }}"
+    password: "{{ sahara_service_password }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  when: not sahara_service_in_ldap | bool
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Add a role to the user
+- name: Ensure sahara user to admin role
+  keystone:
+    command: "ensure_user_role"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    user_name: "{{ sahara_service_user_name }}"
+    tenant_name: "{{ sahara_service_project_name }}"
+    role_name: "{{ sahara_role_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  when: not sahara_service_in_ldap | bool
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Create an endpoint
+- name: Ensure sahara endpoint
+  keystone:
+    command: "ensure_endpoint"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    region_name: "{{ sahara_service_region }}"
+    service_name: "{{ sahara_service_name }}"
+    service_type: "{{ sahara_service_type }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+    endpoint_list:
+      - url: "{{ sahara_service_publicurl }}"
+        interface: "public"
+      - url: "{{ sahara_service_internalurl }}"
+        interface: "internal"
+      - url: "{{ sahara_service_adminurl }}"
+        interface: "admin"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Create proxy domain
+- name: Ensure sahara_proxy domain
+  keystone:
+    command: "ensure_domain"
+    domain_name: "{{ sahara_proxy_user_domain_name }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    endpoint: "{{ keystone_service_adminurl }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_sahara_proxy_domain
+  until: add_sahara_proxy_domain|success
+  retries: 5
+  delay: 10
+  when: sahara_use_domain_for_proxy_users|bool

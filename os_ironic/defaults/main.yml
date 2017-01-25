@@ -1,0 +1,187 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Defaults file for openstack-ansible-ironic
+
+# Verbosity Options
+debug: False
+
+# Set the package install state for distribution packages
+# Options are 'present' and 'latest'
+ironic_package_state: "latest"
+
+# These variables are used in 'developer mode' in order to allow the role
+# to build an environment directly from a git source without the presence
+# of an OpenStack-Ansible repo_server.
+ironic_git_repo: https://git.openstack.org/openstack/ironic
+ironic_git_install_branch: stable/newton
+ironic_developer_mode: false
+ironic_developer_constraints:
+  - "git+{{ ironic_git_repo }}@{{ ironic_git_install_branch }}#egg=ironic"
+
+# Name of the virtual env to deploy into
+ironic_venv_tag: untagged
+ironic_bin: "/openstack/venvs/ironic-{{ ironic_venv_tag }}/bin"
+
+# System info
+ironic_system_user_name: ironic
+ironic_system_group_name: ironic
+ironic_system_shell: /bin/bash
+ironic_system_comment: ironic system user
+ironic_system_home_folder: "/var/lib/{{ ironic_system_user_name }}"
+ironic_system_log_folder: "/var/log/{{ ironic_system_user_name }}"
+ironic_lock_path: /var/lock/ironic
+
+# Ironic Program and Service names
+ironic_api_program_name: apache2
+ironic_conductor_program_name: ironic-conductor
+python_ironic_client_program_name: ironic
+ironic_service_names:
+    - "{{ ironic_api_program_name }}"
+    - "{{ ironic_conductor_program_name }}"
+
+ironic_service_name: ironic
+ironic_service_type: baremetal
+ironic_service_proto: http
+ironic_service_publicuri_proto: "{{ openstack_service_publicuri_proto | default(ironic_service_proto) }}"
+ironic_service_adminuri_proto: "{{ openstack_service_adminuri_proto | default(ironic_service_proto) }}"
+ironic_service_internaluri_proto: "{{ openstack_service_internaluri_proto | default(ironic_service_proto) }}"
+ironic_service_port: 6385
+ironic_service_description: "Ironic baremetal provisioning service"
+ironic_service_publicuri: "{{ ironic_service_publicuri_proto }}://{{ external_lb_vip_address }}:{{ ironic_service_port }}"
+ironic_service_publicurl: "{{ ironic_service_publicuri }}"
+ironic_service_adminuri: "{{ ironic_service_adminuri_proto }}://{{ internal_lb_vip_address }}:{{ ironic_service_port }}"
+ironic_service_adminurl: "{{ ironic_service_adminuri }}"
+ironic_service_internaluri: "{{ ironic_service_internaluri_proto }}://{{ internal_lb_vip_address }}:{{ ironic_service_port }}"
+ironic_service_internalurl: "{{ ironic_service_internaluri }}"
+ironic_program_name: ironic-api
+ironic_service_region: RegionOne
+ironic_service_project_name: "service"
+ironic_service_project_domain_id: default
+ironic_service_user_domain_id: default
+ironic_service_role_name: "admin"
+ironic_service_in_ldap: False
+
+# Ironic image store information
+ironic_swift_image_container: glance_images
+ironic_swift_api_version: v1
+# The ironic swift auth account and swift endpoints will be generated using the
+#  known swift data as provided by swift stat. If you wish to set either of these
+#  items to something else define these variables.
+# ironic_swift_auth_account: AUTH_1234567890
+# ironic_swift_endpoint: https://localhost:8080
+
+# Is this Ironic installation working standalone?
+# If you're wanting Ironic to work without being integrated to other OpenStack
+# services, set this to True, and update the dhcp configuration appropriately
+ironic_standalone: False
+
+# Enables or disables automated cleaning. Automated cleaning
+# is a configurable set of steps, such as erasing disk drives,
+# that are performed on the node to ensure it is in a baseline
+# state and ready to be deployed to.
+ironic_automated_clean: false
+
+# Database
+ironic_galera_user: ironic
+ironic_galera_database: ironic
+
+## Keystone authentication middleware
+ironic_keystone_auth_plugin: password
+
+# Integrated Openstack configuration
+ironic_openstack_driver_list: agent_ipmitool
+ironic_openstack_auth_strategy: keystone
+ironic_openstack_api_url: ''  # Not required when we have keystone
+ironic_openstack_dhcp_provider: neutron
+ironic_openstack_sync_power_state_interval: 60
+ironic_openstack_db_connection_string: "mysql+pymysql://{{ ironic_galera_user }}:{{ ironic_container_mysql_password }}@{{ ironic_galera_address }}/ironic"
+
+# Standalone Ironic configuration
+ironic_standalone_driver_list: agent_ipmitool
+ironic_standalone_auth_strategy: noauth
+ironic_standalone_api_url: "api_url={{ ironic_service_internaluri }}/"
+ironic_standalone_dhcp_provider: none
+ironic_standalone_sync_power_state_interval: -1
+ironic_standalone_db_connection_string: "mysql+pymysql://{{ ironic_galera_user }}:{{ ironic_container_mysql_password }}@{{ ironic_galera_address }}/ironic"
+
+# Ironic db tuning
+ironic_db_max_overflow: 10
+ironic_db_max_pool_size: 120
+ironic_db_pool_timeout: 30
+
+# Common configuration
+ironic_node_name: ironic
+
+# If you want to regenerate the ironic users SSH keys, on each run, set this
+# var to True. Otherwise keys will be generated on the first run and not
+# regenerated each run.
+ironic_recreate_keys: False
+
+ironic_venv_download_url: http://127.0.0.1/venvs/untagged/ubuntu/ironic.tgz
+
+ironic_tftp_server_address: "{{ ansible_ssh_host }}"
+
+ironic_requires_pip_packages:
+  - virtualenv
+  - virtualenv-tools
+  - python-keystoneclient # Keystoneclient needed for the OSA keystone lib
+  - httplib2 # for Ansible's uri module
+
+ironic_pip_packages:
+  - PyMySQL
+  - ironic
+  - python-ironicclient
+  - python-swiftclient
+  - pycrypto
+  - python-memcached
+
+## RabbitMQ info
+ironic_rabbitmq_userid: ironic
+ironic_rabbitmq_vhost: /ironic
+ironic_rabbitmq_servers: 127.0.0.1
+ironic_rabbitmq_use_ssl: False
+ironic_rabbitmq_port: 5672
+
+# Auth
+ironic_service_user_name: "ironic"
+
+# Apache settings
+ironic_wsgi_threads: 1
+_ironic_wsgi_processes: "{{ ansible_processor_vcpus | default(1) // 4 }}"
+ironic_wsgi_processes: "{{ (_ironic_wsgi_processes | int > 1) | ternary(_ironic_wsgi_processes, 1) }}"
+
+### OpenStack Services to integrate with
+
+# Glance
+# ironic_glance_host: x.x.x.x
+ironic_glance_auth_strategy: "{{ ironic_openstack_auth_strategy }}"
+
+# Neutron
+ironic_neutron_auth_strategy: "{{ ironic_openstack_auth_strategy }}"
+
+# This variable is used by the repo_build process to determine
+# which host group to check for members of before building the
+# pip packages required by this role. The value is picked up
+# by the py_pkgs lookup.
+ironic_role_project_group: ironic_all
+
+### Config Overrides
+ironic_ironic_conf_overrides: {}
+ironic_rootwrap_conf_overrides: {}
+ironic_policy_overrides: {}
+
+# pxe boot
+ironic_pxe_append_params: "ipa-debug=1 systemd.journald.forward_to_console=yes"

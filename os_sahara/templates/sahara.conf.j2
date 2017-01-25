@@ -1,0 +1,86 @@
+# {{ ansible_managed }}
+
+{% set _api_threads = ansible_processor_vcpus|default(2) // 2 %}
+{% set api_threads = _api_threads if _api_threads > 0 else 1 %}
+
+[DEFAULT]
+# Disable stderr logging
+use_stderr = False
+
+debug = {{ debug }}
+log_file = /var/log/sahara/sahara.log
+fatal_deprecations = {{ sahara_fatal_deprecations }}
+host = {{ sahara_api_bind_address }}
+port = {{ sahara_api_service_port }}
+workers = {{ sahara_api_workers | default(api_threads) }}
+use_floating_ips = {{ sahara_use_floating_ips }}
+use_neutron = {{ sahara_use_neutron }}
+use_namespaces = {{ sahara_use_namespaces }}
+plugins = {{ sahara_plugin_loaded_base }}
+global_remote_threshold = {{ sahara_global_remote_threshold }}
+cluster_remote_threshold = {{ sahara_cluster_remote_threshold }}
+os_region_name = {{ sahara_os_region_name }}
+default_ntp_server = {{ sahara_default_ntp_server }}
+{% if sahara_use_domain_for_proxy_users %}
+use_domain_for_proxy_users = {{ sahara_use_domain_for_proxy_users }}
+proxy_user_domain_name = {{ sahara_proxy_user_domain_name }}
+proxy_user_role_names = {{ sahara_proxy_user_role_names }}
+{% endif %}
+
+## RPC Backend
+rpc_backend = {{ sahara_rpc_backend }}
+transport_url = rabbit://{% for host in sahara_rabbitmq_servers.split(',') %}{{ sahara_rabbitmq_userid }}:{{ sahara_rabbitmq_password }}@{{ host }}:{{ sahara_rabbitmq_port }}{% if not loop.last %},{% else %}/{{ sahara_rabbitmq_vhost }}{% endif %}{% endfor %}
+
+
+[database]
+connection = mysql+pymysql://{{ sahara_galera_user }}:{{ sahara_container_mysql_password }}@{{ sahara_galera_address }}/{{ sahara_galera_database }}?charset=utf8
+
+
+[keystone_authtoken]
+insecure = {{ keystone_service_internaluri_insecure | bool }}
+auth_type = {{ sahara_keystone_auth_plugin }}
+signing_dir = {{ sahara_system_user_home }}/cache/api
+auth_url = {{ keystone_service_adminurl }}
+auth_uri = {{ keystone_service_internaluri }}
+project_domain_id = {{ sahara_service_project_domain_id }}
+user_domain_id = {{ sahara_service_user_domain_id }}
+project_name = {{ sahara_service_project_name }}
+username = {{ sahara_service_user_name }}
+password = {{ sahara_service_password }}
+
+# parameters needed for trusts creation
+admin_tenant_name = {{ sahara_service_project_name }}
+admin_user = {{ sahara_service_user_name }}
+admin_password = {{ sahara_service_password }}
+
+memcached_servers = {{ memcached_servers }}
+
+token_cache_time = 300
+revocation_cache_time = 60
+
+# if your memcached server is shared, use these settings to avoid cache poisoning
+memcache_security_strategy = ENCRYPT
+memcache_secret_key = {{ memcached_encryption_key }}
+
+# if your keystone deployment uses PKI, and you value security over performance:
+check_revocations_for_cached = False
+
+
+[oslo_policy]
+policy_file = {{ sahara_policy_file }}
+policy_default_rule = {{ sahara_policy_default_rule }}
+policy_dirs = {{ sahara_policy_dirs }}
+
+# Ceilometer options
+{% if sahara_ceilometer_enabled %}
+[oslo_messaging_notifications]
+driver = messagingv2
+transport_url = rabbit://{% for host in sahara_rabbitmq_telemetry_servers.split(',') %}{{ sahara_rabbitmq_telemetry_userid }}:{{ sahara_rabbitmq_telemetry_password }}@{{ host }}:{{ sahara_rabbitmq_telemetry_port }}{% if not loop.last %},{% else %}/{{ sahara_rabbitmq_telemetry_vhost }}{% endif %}{% endfor %}
+{% endif %}
+
+
+[oslo_messaging_rabbit]
+rabbit_use_ssl = {{ rabbitmq_use_ssl }}
+
+[profiler]
+enabled = {{ sahara_profiler_enabled }}

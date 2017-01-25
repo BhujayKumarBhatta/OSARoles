@@ -1,0 +1,77 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+keystone_shibboleth_repo:
+  state: "present"
+  name: "shibboleth"
+  description: "shibboleth Repo"
+  file: shibboleth
+  baseurl: "http://download.opensuse.org/repositories/security:/shibboleth/CentOS_7/"
+  gpgkey: "http://download.opensuse.org/repositories/security:/shibboleth/CentOS_7//repodata/repomd.xml.key"
+
+keystone_distro_packages:
+  - ca-certificates
+  - cronie
+  - cronie-anacron
+  - git
+  - libffi-devel
+  - libgsasl-devel
+  - libxml2-devel
+  - libxslt-devel
+  - openldap
+  - openldap-devel
+  - openssl
+  - python-devel
+  - rsync
+
+keystone_apache_distro_packages:
+  - httpd
+  - httpd-tools
+  - mod_ssl
+
+keystone_mod_wsgi_distro_packages:
+  - mod_wsgi
+
+keystone_mod_proxy_uwsgi_distro_packages:
+  - mod_proxy_uwsgi
+
+keystone_nginx_distro_packages:
+  - nginx
+
+keystone_idp_distro_packages:
+  - xmlsec1
+
+keystone_sp_distro_packages:
+  - shibboleth
+
+keystone_developer_mode_distro_packages:
+  - '@Development Tools'
+
+keystone_apache_default_sites:
+  - "/etc/httpd/conf.d/userdir.conf"
+  - "/etc/httpd/conf.d/welcome.conf"
+  - "/etc/httpd/conf.d/ssl.conf"
+
+keystone_apache_conf: "/etc/httpd/conf/httpd.conf"
+keystone_apache_security_conf: "{{ keystone_apache_conf }}"
+
+keystone_apache_configs:
+  - { src: "keystone-ports.conf.j2", dest: "/etc/httpd/conf.d/ports.conf" }
+  - { src: "keystone-httpd.conf.j2", dest: "/etc/httpd/conf.d/keystone-httpd.conf" }
+  - { src: "keystone-httpd-mpm.conf.j2", dest: "/etc/httpd/conf.modules.d/mpm_{{ keystone_httpd_mpm_backend }}.conf" }
+
+keystone_nginx_conf_path: "conf.d"
+
+keystone_system_service_name: httpd

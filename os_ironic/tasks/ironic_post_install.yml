@@ -1,0 +1,145 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Setup ironic for standalone usage
+  set_fact:
+    ironic_driver_list: "{{ ironic_standalone_driver_list }}"
+    ironic_auth_strategy: "{{ ironic_standalone_auth_strategy }}"
+    ironic_api_url: "{{ ironic_standalone_api_url }}"
+    ironic_dhcp_provider: "{{ ironic_standalone_dhcp_provider }}"
+    ironic_sync_power_state_interval: "{{ ironic_standalone_sync_power_state_interval }}"
+    ironic_db_connection_string: "{{ ironic_standalone_db_connection_string }}"
+  when: ironic_standalone | bool
+  tags:
+    - always
+
+- name: Setup ironic for integrated Openstack usage
+  set_fact:
+    ironic_driver_list: "{{ ironic_openstack_driver_list }}"
+    ironic_auth_strategy: "{{ ironic_openstack_auth_strategy }}"
+    ironic_api_url: "{{ ironic_openstack_api_url }}"
+    ironic_dhcp_provider: "{{ ironic_openstack_dhcp_provider }}"
+    ironic_sync_power_state_interval: "{{ ironic_openstack_sync_power_state_interval }}"
+    ironic_db_connection_string: "{{ ironic_openstack_db_connection_string }}"
+  when: not ironic_standalone | bool
+  tags:
+    - always
+
+- name: Post swift tempURL secret key
+  shell: |
+    OS_ENDPOINT_TYPE=internalURL \
+        {{ ironic_bin }}/swift {{ keystone_service_adminuri_insecure | bool | ternary('--insecure','') }} \
+        --os-username "service:{{ glance_service_user_name }}" \
+        --os-password {{ glance_service_password }} \
+        --os-auth-url {{ keystone_service_internalurl }} \
+        --os-identity-api-version {{ keystone_service_internalurl.split('/v')[-1] }} \
+        post -m temp-url-key:{{ ironic_swift_temp_url_secret_key }}
+  when:
+    - inventory_hostname == groups['ironic_all'][0]
+    - not ironic_standalone | bool
+  tags:
+    - always
+
+- name: Get swift account
+  shell: |
+    OS_ENDPOINT_TYPE=internalURL \
+        {{ ironic_bin }}/swift {{ keystone_service_adminuri_insecure | bool | ternary('--insecure','') }} \
+        --os-username "service:{{ glance_service_user_name }}" \
+        --os-password {{ glance_service_password }} \
+        --os-auth-url {{ keystone_service_internalurl }} \
+        --os-identity-api-version {{ keystone_service_internalurl.split('/v')[-1] }} \
+        stat -v | awk '/StorageURL\:/ {print $2}'
+  register: swift_storage_url
+  when:
+    - (ironic_swift_auth_account is undefined) or (ironic_swift_endpoint is undefined)
+    - not ironic_standalone | bool
+  tags:
+    - always
+
+- name: Validate swift output
+  fail:
+    msg: |
+      No StorageURL output found using the `swift stat` command and either
+      the ``ironic_swift_auth_account`` or ``ironic_swift_auth_account``
+      variables are undefined. Ensure swift is functional and/or define
+      those variables.
+  when:
+    - (ironic_swift_auth_account is undefined) and (ironic_swift_endpoint is undefined)
+    - not ironic_standalone | bool
+    - not swift_storage_url.stdout
+  tags:
+    - always
+
+- name: Set the swift auth facts
+  set_fact:
+    ironic_swift_auth_account: "{{ swift_storage_url.stdout.split('/v1/')[-1] }}"
+  when:
+    - ironic_swift_auth_account is undefined
+    - not ironic_standalone | bool
+  tags:
+    - always
+
+- name: Set the swift endpoint facts
+  set_fact:
+    ironic_swift_endpoint: "{{ swift_storage_url.stdout.split('/v1/')[0] }}"
+  when:
+    - ironic_swift_endpoint is undefined
+    - not ironic_standalone | bool
+  tags:
+    - always
+
+- name: Generate ironic config
+  config_template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner|default(ironic_system_user_name) }}"
+    group: "{{ item.group|default(ironic_system_group_name) }}"
+    mode: "0644"
+    config_overrides: "{{ item.config_overrides }}"
+    config_type: "{{ item.config_type }}"
+  with_items:
+    - src: "ironic.conf.j2"
+      dest: "/etc/ironic/ironic.conf"
+      config_overrides: "{{ ironic_ironic_conf_overrides }}"
+      config_type: "ini"
+    - src: "rootwrap.conf.j2"
+      dest: "/etc/ironic/rootwrap.conf"
+      owner: "root"
+      group: "root"
+      config_overrides: "{{ ironic_rootwrap_conf_overrides }}"
+      config_type: "ini"
+    - src: "policy.json.j2"
+      dest: "/etc/ironic/policy.json"
+      config_overrides: "{{ ironic_policy_overrides }}"
+      config_type: "json"
+  notify: Restart ironic services
+
+- name: Copy rootwrap filters
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/ironic/rootwrap.d/"
+    owner: "root"
+    group: "root"
+  with_fileglob:
+    - rootwrap.d/*
+  notify: Restart ironic services
+
+- name: Include sudoers file
+  template:
+    src: "sudoers.j2"
+    dest: "/etc/sudoers.d/{{ ironic_system_user_name }}_sudoers"
+    mode: "0440"
+    owner: "root"
+    group: "root"

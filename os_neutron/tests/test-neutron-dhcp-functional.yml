@@ -1,0 +1,48 @@
+---
+# Copyright 2016, Logan Vig <logan2211@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# (andymccr): To avoid a race condition we can restart
+# the neutron-dhcp-agent service:
+# https://bugs.launchpad.net/openstack-ansible/+bug/1629346
+
+- name: Restart neutron-dhcp-agent service
+  service:
+    state: restarted
+    name: neutron-dhcp-agent
+
+- name: Ensure the dhcp agent is on the net
+  shell: |
+    . /root/openrc
+    neutron dhcp-agent-list-hosting-net '{{ neutron_net_list.stdout_lines[0].split(' ')[0] }}' | grep ":-)"
+  register: neutron_dhcp_agent_list
+  until: neutron_dhcp_agent_list.rc == 0
+  retries: 10
+  delay: 3
+
+- name: Check for dhcp network namespace
+  shell: ip netns ls
+  register: dhcp_namespace
+  until: dhcp_namespace.stdout.find("qdhcp") != -1
+  retries: 5
+  delay: 10
+
+- name: List the namespaces
+  debug:
+    msg: "{{ dhcp_namespace }}"
+
+- name: Make sure the dhcp namespace is present
+  assert:
+    that:
+      - "'qdhcp' in dhcp_namespace.stdout"

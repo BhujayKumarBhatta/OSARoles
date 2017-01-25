@@ -1,0 +1,119 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Update apt sources
+  apt:
+    update_cache: yes
+    cache_valid_time: 600
+  register: apt_update
+  until: apt_update|success
+  retries: 5
+  delay: 2
+
+- name: Install apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_distro_packages }}"
+
+- name: Install Apache apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_apache_distro_packages }}"
+  when:
+    - keystone_apache_enabled | bool
+
+- name: Install mod_wsgi apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_mod_wsgi_distro_packages }}"
+  when:
+    - keystone_mod_wsgi_enabled | bool
+
+- name: Install mod_proxy_uwsgi apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_mod_proxy_uwsgi_distro_packages }}"
+  when:
+    - not keystone_mod_wsgi_enabled | bool
+
+- name: Install Nginx apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_nginx_distro_packages }}"
+  when:
+    - not keystone_apache_enabled | bool
+
+- name: Install IdP apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_idp_distro_packages }}"
+  when:
+    - keystone_apache_enabled | bool
+    - keystone_idp != {}
+
+- name: Install SP apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_sp_distro_packages }}"
+  when:
+    - keystone_apache_enabled | bool
+    - keystone_sp != {}
+
+- name: Install developer mode apt packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ keystone_package_state }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ keystone_developer_mode_distro_packages }}"
+  when:
+    - keystone_developer_mode | bool

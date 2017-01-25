@@ -1,0 +1,64 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Create TEMP run dir
+  file:
+    path: "/var/run/{{ item.0.service_name }}"
+    state: directory
+    owner: "{{ ceilometer_system_user_name }}"
+    group: "{{ ceilometer_system_group_name }}"
+    mode: "02755"
+  with_subelements:
+    - "{{ ceilometer_services }}"
+    - group
+  when: inventory_hostname in groups[item.1]
+
+- name: Create TEMP lock dir
+  file:
+    path: "/var/lock/{{ item.0.service_name }}"
+    state: directory
+    owner: "{{ ceilometer_system_user_name }}"
+    group: "{{ ceilometer_system_group_name }}"
+    mode: "02755"
+  with_subelements:
+    - "{{ ceilometer_services }}"
+    - group
+  when: inventory_hostname in groups[item.1]
+
+- name: Create tmpfiles.d entry
+  template:
+    src: "ceilometer-systemd-tmpfiles.j2"
+    dest: "/etc/tmpfiles.d/{{ item.0.service_name }}.conf"
+    mode: "0644"
+    owner: "root"
+    group: "root"
+  with_subelements:
+    - "{{ ceilometer_services }}"
+    - group
+  when: inventory_hostname in groups[item.1]
+
+- name: Place the systemd init script
+  template:
+    src: "ceilometer-systemd-init.j2"
+    dest: "/etc/systemd/system/{{ item.0.service_name }}.service"
+    mode: "0644"
+    owner: "root"
+    group: "root"
+  with_subelements:
+    - "{{ ceilometer_services }}"
+    - group
+  when: inventory_hostname in groups[item.1]
+  notify:
+    - Reload systemd daemon

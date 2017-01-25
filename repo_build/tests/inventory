@@ -1,0 +1,46 @@
+[all]
+localhost ansible_become=True
+container1 ansible_host=10.100.100.2 ansible_become=True ansible_user=root
+
+[repo_all]
+container1
+
+[all_containers:children]
+repo_all
+
+# This is here to validate selectively building with
+# requirements like "aodh[mysql]"
+[aodh_all]
+container1
+
+# This is here to validate the venv build inclusion
+[keystone_all]
+container1
+
+# This is here to validate the venv build inclusion
+[utility_all]
+container1
+
+# This is here to validate the git clone exclusion
+[nova_all]
+
+# This is here to validate the git clone exclusion
+[cinder_all]
+
+# This is here to validate the git clone exclusion
+[ceilometer_all]
+
+# This is here to validate the git clone exclusion
+[glance_all]
+
+# This is here to validate the git clone exclusion
+[heat_all]
+
+# This is here to validate the git clone exclusion
+[horizon_all]
+
+# This is here to validate the git clone exclusion
+[neutron_all]
+
+# This is here to validate the git clone exclusion
+[swift_all]

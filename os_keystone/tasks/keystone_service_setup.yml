@@ -1,0 +1,130 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Wait for keystone admin to come up
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ keystone_admin_port }}"
+    timeout: 25
+    delay: 10
+
+- name: Wait for keystone service to come up
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ keystone_service_port }}"
+    timeout: 25
+    delay: 10
+
+- name: Bootstrap keystone admin and endpoint
+  command: |
+     {{ keystone_bin }}/keystone-manage bootstrap \
+     --bootstrap-username {{ keystone_admin_user_name }} \
+     --bootstrap-password {{ keystone_auth_admin_password }} \
+     --bootstrap-project-name {{ keystone_admin_tenant_name }} \
+     --bootstrap-role-name {{ keystone_role_name }} \
+     --bootstrap-service-name {{ keystone_service_name }} \
+     --bootstrap-region-id {{ keystone_service_region }} \
+     --bootstrap-admin-url {{ keystone_service_adminurl }} \
+     --bootstrap-public-url {{ keystone_service_publicurl }} \
+     --bootstrap-internal-url {{ keystone_service_internalurl }}
+  become: yes
+  become_user: "{{ keystone_system_user_name }}"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Create a service tenant
+- name: Ensure service tenant
+  keystone:
+    command: "ensure_tenant"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    endpoint: "{{ keystone_service_adminurl }}"
+    tenant_name: "{{ keystone_service_tenant_name }}"
+    description: "{{ keystone_service_description }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Add the default user role
+- name: Ensure default keystone user role
+  keystone:
+    command: "ensure_role"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    endpoint: "{{ keystone_service_adminurl }}"
+    role_name: "{{ keystone_default_role_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_member_role
+  when: not keystone_service_in_ldap | bool
+  until: add_member_role|success
+  retries: 5
+  delay: 10
+
+# Create a service
+- name: Ensure Keystone Service
+  keystone:
+    command: "ensure_service"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    endpoint: "{{ keystone_service_adminurl }}"
+    service_name: "{{ keystone_service_name }}"
+    service_type: "{{ keystone_service_type }}"
+    description: "{{ keystone_service_description }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Create a service user
+- name: Ensure Keystone user
+  keystone:
+    command: "ensure_user"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    endpoint: "{{ keystone_service_adminurl }}"
+    user_name: "{{ keystone_service_user_name }}"
+    tenant_name: "{{ keystone_service_tenant_name }}"
+    password: "{{ keystone_service_password }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 10
+
+# Add a role to the user
+- name: Ensure Keystone user to Admin role
+  keystone:
+    command: "ensure_user_role"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    endpoint: "{{ keystone_service_adminurl }}"
+    user_name: "{{ keystone_service_user_name }}"
+    tenant_name: "{{ keystone_service_tenant_name }}"
+    role_name: "{{ keystone_role_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: add_service
+  until: add_service|success
+  retries: 5
+  delay: 10

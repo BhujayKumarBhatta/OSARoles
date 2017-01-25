@@ -1,0 +1,83 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NOTE(cloudnull) this task is not in dict formation because it is
+#  dynamically loading facts from the nova_virt_types based on the
+#  nova_virt_type setting.
+- name: Set nova config facts
+  set_fact: '{{ item.key }}="{{ item.value }}"'
+  with_dict: "{{ nova_virt_types[nova_virt_type] }}"
+  when:
+    - item.key not in hostvars[inventory_hostname] or item.key is undefined
+  tags:
+    - nova-config
+    - nova-post-install
+
+- name: Generate nova config
+  config_template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner|default(nova_system_user_name) }}"
+    group: "{{ item.group|default(nova_system_group_name) }}"
+    mode: "0644"
+    config_overrides: "{{ item.config_overrides }}"
+    config_type: "{{ item.config_type }}"
+  with_items:
+    - src: "nova.conf.j2"
+      dest: "/etc/nova/nova.conf"
+      config_overrides: "{{ nova_nova_conf_overrides }}"
+      config_type: "ini"
+    - src: "rootwrap.conf.j2"
+      dest: "/etc/nova/rootwrap.conf"
+      owner: "root"
+      group: "root"
+      config_overrides: "{{ nova_rootwrap_conf_overrides }}"
+      config_type: "ini"
+    - src: "api-paste.ini.j2"
+      dest: "/etc/nova/api-paste.ini"
+      config_overrides: "{{ nova_api_paste_ini_overrides }}"
+      config_type: "ini"
+    - src: "policy.json.j2"
+      dest: "/etc/nova/policy.json"
+      config_overrides: "{{ nova_policy_overrides }}"
+      config_type: "json"
+  notify: Restart nova services
+  tags:
+    - nova-config
+    - nova-post-install
+
+- name: Copy nova rootwrap filter config
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/nova/rootwrap.d/"
+    owner: "root"
+    group: "root"
+  with_fileglob:
+    - rootwrap.d/*
+  notify: Restart nova services
+  tags:
+    - nova-config
+    - nova-post-install
+
+- name: Drop sudoers file
+  template:
+    src: "sudoers.j2"
+    dest: "/etc/sudoers.d/{{ nova_system_user_name }}_sudoers"
+    mode: "0440"
+    owner: "root"
+    group: "root"
+  tags:
+    - sudoers
+    - nova-sudoers

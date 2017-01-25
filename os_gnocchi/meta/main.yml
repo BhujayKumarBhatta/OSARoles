@@ -1,0 +1,24 @@
+---
+galaxy_info:
+  author: Steve Lewis
+  description: An Ansible Galaxy Role for Deploying OpenStack Gnocchi
+  company:
+  license: Apache
+  min_ansible_version: 2.0
+  platforms:
+  - name: Ubuntu
+    versions:
+    - trusty
+    - xenial
+  categories:
+  - cloud
+  - openstack
+dependencies:
+  - pip_install
+  - role: apt_package_pinning
+    when:
+      - ansible_pkg_mgr == 'apt'
+  - galera_client
+  - openstack_openrc
+# Extra dependency not installable this way
+#  git clone https://git.openstack.org/openstack/openstack-ansible-plugins {homedir}/.ansible/plugins

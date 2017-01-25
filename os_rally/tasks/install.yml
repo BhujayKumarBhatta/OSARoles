@@ -1,0 +1,91 @@
+---
+# Copyright 2016, Comcast Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- include: install-apt.yml
+  static: no
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Create developer mode constraint file
+  copy:
+    dest: "/opt/developer-pip-constraints.txt"
+    content: |
+      {% for item in rally_developer_constraints %}
+      {{ item }}
+      {% endfor %}
+  when: rally_developer_mode | bool
+
+- name: Install requires pip packages
+  pip:
+    name: "{{ rally_requires_pip_packages | join(' ') }}"
+    state: latest
+    extra_args: >-
+      {{ (pip_install_upper_constraints is defined) | ternary('--constraint ' + pip_install_upper_constraints | default(''),'') }}
+      {{ pip_install_options | default('') }}
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+
+- name: Attempt venv download
+  get_url:
+    url: "{{ rally_venv_download_url }}"
+    dest: "/var/cache/{{ rally_venv_download_url | basename }}"
+    checksum: "sha1:{{ lookup('url', rally_venv_download_url | replace('tgz', 'checksum')) }}"
+  register: rally_get_venv
+  when: not rally_developer_mode | bool
+
+- name: Remove existing venv
+  file:
+    path: "{{ rally_bin | dirname }}"
+    state: absent
+  when: rally_get_venv | changed
+
+- name: Create rally venv dir
+  file:
+    path: "{{ rally_bin | dirname }}"
+    state: directory
+  register: rally_venv_dir
+
+- name: Unarchive pre-built venv
+  unarchive:
+    src: "/var/cache/{{ rally_venv_download_url | basename }}"
+    dest: "{{ rally_bin | dirname }}"
+    copy: "no"
+  when:
+    - not rally_developer_mode | bool
+    - rally_get_venv | changed or rally_venv_dir | changed
+
+- name: Install pip packages
+  pip:
+    name: "{{ rally_pip_packages | join(' ') }}"
+    state: latest
+    virtualenv: "{{ rally_bin | dirname }}"
+    virtualenv_site_packages: "no"
+    extra_args: >-
+      {{ rally_developer_mode | ternary('--constraint /opt/developer-pip-constraints.txt', '') }}
+      {{ (pip_install_upper_constraints is defined) | ternary('--constraint ' + pip_install_upper_constraints | default(''),'') }}
+      {{ pip_install_options | default('') }}
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  when: rally_developer_mode | bool
+
+- name: Update virtualenv path
+  command: >
+    virtualenv-tools --update-path=auto --reinitialize {{ rally_bin | dirname }}
+  when:
+    - not rally_developer_mode | bool
+    - rally_get_venv | changed or rally_venv_dir | changed

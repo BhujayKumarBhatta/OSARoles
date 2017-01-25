@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+
+
+description "{{ item.0.service_name }}"
+author "Kevin Carter <kevin.carter@rackspace.com>"
+
+start on runlevel [2345]
+stop on runlevel [016]
+
+respawn
+respawn limit 10 5
+
+# Set the RUNBIN environment variable
+env RUNBIN="{{ ceilometer_bin }}/{{ item.0.service_name }}"
+
+# Change directory to service users home
+chdir "{{ ceilometer_system_user_home }}"
+
+# Pre start actions
+pre-start script
+  mkdir -p "/var/run/{{ item.0.service_name }}"
+  chown {{ ceilometer_system_user_name }}:{{ ceilometer_system_group_name }} "/var/run/{{ item.0.service_name }}"
+
+  mkdir -p "/var/lock/{{ item.0.service_name }}"
+  chown {{ ceilometer_system_user_name }}:{{ ceilometer_system_group_name }} "/var/lock/{{ item.0.service_name }}"
+
+  . {{ ceilometer_bin }}/activate
+
+end script
+
+# Post stop actions
+post-stop script
+  rm "/var/run/{{ item.0.service_name }}/{{ item.0.service_name }}.pid"
+end script
+
+# Run the start up job
+exec start-stop-daemon --start \
+                       --chuid {{ ceilometer_system_user_name }} \
+                       --make-pidfile \
+                       --pidfile /var/run/{{ item.0.service_name }}/{{ item.0.service_name }}.pid \
+                       --exec "{{ program_override|default('$RUNBIN') }}" \
+                       -- {{ program_config_options|default('') }} \
+                       --log-file=/var/log/{{ ceilometer_service_name }}/{{ item.0.service_name }}.log
+

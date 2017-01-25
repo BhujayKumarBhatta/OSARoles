@@ -1,0 +1,68 @@
+[DEFAULT]
+# Disable stderr logging
+use_stderr = False
+host = {{ ansible_ssh_host | default(ansible_host) }}
+rpc_backend = {{ magnum_rpc_backend }}
+
+[api]
+host = {{ ansible_ssh_host | default(ansible_host) }}
+
+[barbican_client]
+endpoint_type = internalURL
+
+[cinder_client]
+region_name = {{ cinder_service_region }}
+endpoint_type = internalURL
+
+[database]
+connection = mysql+pymysql://{{ magnum_galera_user }}:{{ magnum_galera_password }}@{{ magnum_galera_address }}/{{ magnum_galera_database_name }}?charset=utf8
+
+[glance_client]
+endpoint_type = internalURL
+
+[heat_client]
+endpoint_type = internalURL
+
+[keystone_authtoken]
+auth_uri = {{ keystone_service_internalurl }}
+auth_version = v3
+insecure = {{ keystone_service_internaluri_insecure | bool }}
+signing_dir = {{ magnum_system_user_home }}/cache/api
+memcached_servers = {{ memcached_servers }}
+token_cache_time = 300
+revocation_cache_time = 60
+identity_uri = {{ keystone_service_internaluri }}
+auth_type = {{ magnum_keystone_auth_plugin }}
+auth_url = {{ keystone_service_internaluri }}
+project_domain_name = {{ magnum_service_project_domain_name }}
+user_domain_name = {{ magnum_service_user_domain_name }}
+project_name = {{ magnum_service_project_name }}
+username = {{ magnum_service_user_name }}
+password = {{ magnum_service_password }}
+#TODO(chris_hultin)
+#Remove once https://bugs.launchpad.net/magnum/+bug/1594888 is closed
+admin_user = {{ magnum_service_user_name }}
+
+[magnum_client]
+endpoint_type = internalURL
+
+[neutron_client]
+endpoint_type = internalURL
+
+[nova_client]
+endpoint_type = internalURL
+
+[oslo_messaging_rabbit]
+rabbit_port = {{ magnum_rabbitmq_port }}
+rabbit_hosts = {{ magnum_rabbitmq_servers }}
+rabbit_use_ssl = {{ magnum_rabbitmq_use_ssl }}
+rabbit_userid = {{ magnum_rabbitmq_userid }}
+rabbit_password = {{ magnum_rabbitmq_password }}
+rabbit_virtual_host = {{ magnum_rabbitmq_vhost }}
+rabbit_notification_exchange = magnum
+rabbit_notification_topic = notification
+
+[trust]
+trustee_domain_admin_password = {{ magnum_trustee_password }}
+trustee_domain_admin_name = {{ magnum_trustee_domain_admin_name }}
+trustee_domain_name = {{ magnum_trustee_domain_name }}

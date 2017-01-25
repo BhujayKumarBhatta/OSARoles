@@ -1,0 +1,19 @@
+galaxy_info:
+  author: Comcast Corporation
+  description: Install and configure OpenStack Rally
+  company: Comcast Corportation
+  license: Apache2
+  min_ansible_version: 2.0
+  platforms:
+    - name: Ubuntu
+      versions:
+        - trusty
+        - xenial
+  galaxy_tags: []
+dependencies:
+  - pip_install
+  - role: apt_package_pinning
+    when:
+      - ansible_pkg_mgr == 'apt'
+  - galera_client
+  - openstack_openrc

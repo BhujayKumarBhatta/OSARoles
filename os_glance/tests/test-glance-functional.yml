@@ -1,0 +1,64 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+- name: Playbook for testing glance
+  hosts: glance_all
+  user: root
+  gather_facts: true
+  tasks:
+    # Packages need to be installed outside
+    # of venv to be usable by Ansible
+    - name: Install testing pip packages
+      pip:
+        name: "{{ item }}"
+      with_items:
+        - python-glanceclient
+        - python-keystoneclient
+        - httplib2
+        - pyyaml
+
+    - name: Check the glance-api
+      uri:
+        url: "http://localhost:9292"
+        status_code: 300
+
+    - name: Check the glance-registry
+      uri:
+        url: "http://localhost:9191"
+        status_code: 401
+
+    - name: Upload the Cirros image
+      glance:
+        command: 'image-create'
+        openrc_path: /root/openrc
+        image_name: cirros
+        image_url: "http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-uec.tar.gz"
+        image_container_format: bare
+        image_disk_format: qcow2
+        image_is_public: True
+      register: cirros_image_create
+      until: cirros_image_create | success
+      retries: 5
+      delay: 15
+
+    - name: Ensure image uploaded
+      fail:
+        msg: "Image upload failed"
+      when: (glance_images is not defined) or (glance_images.cirros is not defined) or (glance_images.cirros.id is not defined)
+
+  vars_files:
+    - common/test-vars.yml
+

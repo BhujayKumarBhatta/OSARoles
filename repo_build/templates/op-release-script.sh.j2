@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -ve
+
+
+function build_repo {
+    PKG_DIRECTORY="$1"
+    PKG_LOWER="$2"
+    RAW_PKG="$3"
+
+    # If the target PKG_DIRECTORY does not exist, create it
+    [[ ! -d "${PKG_DIRECTORY}" ]] && mkdir -p "${PKG_DIRECTORY}"
+
+    # Make sure the repo service user owns the PKG_DIRECTORY
+    chown "{{ repo_build_service_user_name }}" "${PKG_DIRECTORY}"
+
+    # If the target wheel PKG_DIRECTORY has an index.html file in it, remove it. This is
+    #  in support of older archives that may have been created in the early liberty/kilo
+    #  timeframe.
+    [[ -f "${PKG_DIRECTORY}/index.html" ]] && rm "${PKG_DIRECTORY}/index.html"
+
+    # Move the built wheel into place if it does not exist or is different from one
+    #  already found that is using the same name.
+    if [ ! -f "${PKG_DIRECTORY}/${PKG_LOWER}" ];then
+        mv "{{ repo_build_output }}/${RAW_PKG}" "${PKG_DIRECTORY}/${PKG_LOWER}"
+    elif ! diff "{{ repo_build_output }}/${RAW_PKG}" "${PKG_DIRECTORY}/${PKG_LOWER}" > /dev/null;then
+        mv "{{ repo_build_output }}/${RAW_PKG}" "${PKG_DIRECTORY}/${PKG_LOWER}"
+    fi
+
+    # Make sure the repo service user owns the package
+    chown "{{ repo_build_service_user_name }}" "${PKG_DIRECTORY}/${PKG_LOWER}"
+
+    # link the built package to the release reference
+    ln -sf "${PKG_DIRECTORY}/${PKG_LOWER}" "{{ repo_build_release_path }}/{{ repo_build_release_tag }}/${PKG_LOWER}"
+
+    # Make sure the repo service user owns the link
+    chown -h "{{ repo_build_service_user_name }}" "{{ repo_build_release_path }}/{{ repo_build_release_tag }}/${PKG_LOWER}"
+
+    # link the built package to the global links reference
+    ln -sf "${PKG_DIRECTORY}/${PKG_LOWER}" "{{ repo_build_global_links_path }}/${PKG_LOWER}"
+
+    # Make sure the repo service user owns the link
+    chown -h "{{ repo_build_service_user_name }}" "{{ repo_build_global_links_path }}/${PKG_LOWER}"
+}
+
+
+# Loop through all built wheel.
+{% for item in built_wheels.stdout_lines %}
+
+# Set the PKG_DIRECTORY variable normalizing the name
+# Set the package name variable normalizing the name
+DIRECTORY="{{ repo_build_pool_dir }}/{{ item.split('-')[0] | lower }}"
+NAME_LOWER="{{ item | lower }}"
+RAW_NAME="{{ item }}"
+
+build_repo "${DIRECTORY}" "${NAME_LOWER}" "${RAW_NAME}"
+
+unset PKG_DIRECTORY
+unset PKG_LOWER
+
+{% endfor %}
+

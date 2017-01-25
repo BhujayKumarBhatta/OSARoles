@@ -1,0 +1,98 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Copy ceilometer config
+  config_template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner|default(ceilometer_system_user_name) }}"
+    group: "{{ item.group|default(ceilometer_system_group_name) }}"
+    mode: "0644"
+    config_overrides: "{{ item.config_overrides }}"
+    config_type: "{{ item.config_type }}"
+    list_extend: "{{ item.list_extend | default(omit) }}"
+  with_items:
+    - src: "ceilometer.conf.j2"
+      dest: "/etc/ceilometer/ceilometer.conf"
+      config_overrides: "{{ ceilometer_ceilometer_conf_overrides }}"
+      config_type: "ini"
+    - src: "api_paste.ini.j2"
+      dest: "/etc/ceilometer/api_paste.ini"
+      config_overrides: "{{ ceilometer_api_paste_ini_overrides }}"
+      config_type: "ini"
+    - src: "rootwrap.conf.j2"
+      dest: "/etc/ceilometer/rootwrap.conf"
+      owner: "root"
+      group: "root"
+      config_overrides: "{{ ceilometer_rootwrap_conf_overrides }}"
+      config_type: "ini"
+    - src: "event_pipeline.yaml.j2"
+      dest: "/etc/ceilometer/event_pipeline.yaml"
+      config_overrides: "{{ ceilometer_event_pipeline_yaml_overrides }}"
+      config_type: "yaml"
+      list_extend: false
+    - src: "event_definitions.yaml.j2"
+      dest: "/etc/ceilometer/event_definitions.yaml"
+      config_overrides: "{{ ceilometer_event_definitions_yaml_overrides }}"
+      config_type: "yaml"
+      list_extend: false
+    - src: "pipeline.yaml.j2"
+      dest: "/etc/ceilometer/pipeline.yaml"
+      config_overrides: "{{ ceilometer_pipeline_yaml_overrides }}"
+      config_type: "yaml"
+      list_extend: false
+    - src: "gnocchi_resources.yaml.j2"
+      dest: "/etc/ceilometer/gnocchi_resources.yaml"
+      config_overrides: "{{ ceilometer_gnocci_resources_yaml_overrides }}"
+      config_type: "yaml"
+      list_extend: false
+    - src: "osprofiler_event_definitions.yaml.j2"
+      dest: "/etc/ceilometer/osprofiler_event_definitions.yaml"
+      config_overrides: "{{ ceilometer_osprofiler_event_definitions_yaml_overrides }}"
+      config_type: "yaml"
+      list_extend: false
+    - src: "loadbalancer_v2_meter_definitions.yaml.j2"
+      dest: "/etc/ceilometer/loadbalancer_v2_meter_definitions.yaml"
+      config_overrides: "{{ ceilometer_loadbalancer_v2_meter_definitions_yaml_overrides }}"
+      config_type: "yaml"
+      list_extend: false
+    - src: "policy.json.j2"
+      dest: "/etc/ceilometer/policy.json"
+      config_overrides: "{{ ceilometer_policy_overrides }}"
+      config_type: "json"
+  notify:
+    - Restart ceilometer services
+    - Restart Apache
+
+- name: Drop ceilometer API WSGI Configs
+  template:
+    src: ceilometer-api-wsgi.py.j2
+    dest: /var/www/cgi-bin/ceilometer/ceilometer-api
+    owner: "{{ ceilometer_system_user_name }}"
+    group: "{{ ceilometer_system_group_name }}"
+    mode: "0755"
+  notify:
+    - Restart Apache
+
+- name: Copy rootwrap filters
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/ceilometer/rootwrap.d/"
+    owner: "root"
+    group: "root"
+  with_fileglob:
+    - rootwrap.d/*
+  notify:
+    - Restart ceilometer services

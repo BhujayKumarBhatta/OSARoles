@@ -1,0 +1,153 @@
+# {{ ansible_managed }}
+
+[DEFAULT]
+# Disable stderr logging
+use_stderr = False
+debug = {{ debug }}
+
+auth_strategy = {{ ironic_openstack_auth_strategy }}
+enabled_drivers = {{ ironic_driver_list }}
+host = {{ inventory_hostname }}
+
+memcached_servers = {{ memcached_servers }}
+
+[agent]
+
+[amt]
+
+[api]
+
+[cimc]
+
+[cisco_ucs]
+
+[conductor]
+api_url = {{ ironic_api_url }}
+sync_power_state_interval = {{ ironic_sync_power_state_interval }}
+automated_clean = {{ ironic_automated_clean }}
+
+[console]
+
+[cors]
+
+[cors.subdomain]
+
+[database]
+connection = {{ ironic_db_connection_string }}
+max_overflow = {{ ironic_db_max_overflow }}
+max_pool_size = {{ ironic_db_max_pool_size }}
+pool_timeout = {{ ironic_db_pool_timeout }}
+
+[deploy]
+
+[dhcp]
+dhcp_provider = {{ ironic_dhcp_provider }}
+
+[disk_partitioner]
+
+[disk_utils]
+
+[glance]
+glance_api_servers = {{ glance_api_servers }}
+{% if not ironic_standalone | bool %}
+swift_temp_url_key = {{ ironic_swift_temp_url_secret_key }}
+swift_container = {{ ironic_swift_image_container }}
+swift_endpoint_url = {{ ironic_swift_endpoint }}
+swift_account = {{ ironic_swift_auth_account }}
+swift_api_version = {{ ironic_swift_api_version }}
+temp_url_endpoint_type = swift
+{% endif %}
+
+[iboot]
+
+[ilo]
+
+[inspector]
+
+[ipmi]
+
+[irmc]
+
+[ironic_lib]
+
+[keystone]
+region_name = {{ ironic_service_region }}
+
+[keystone_authtoken]
+insecure = {{ keystone_service_internaluri_insecure | bool }}
+auth_type = {{ ironic_keystone_auth_plugin }}
+signing_dir = {{ ironic_system_home_folder }}/cache/api
+auth_url = {{ keystone_service_adminuri }}
+auth_uri = {{ keystone_service_internaluri }}
+project_domain_id = {{ ironic_service_project_domain_id }}
+user_domain_id = {{ ironic_service_user_domain_id }}
+project_name = {{ ironic_service_project_name }}
+username = {{ ironic_service_user_name }}
+password = {{ ironic_service_password }}
+region_name = {{ keystone_service_region }}
+
+memcached_servers = {{ memcached_servers }}
+
+token_cache_time = 300
+revocation_cache_time = 60
+
+# if your memcached server is shared, use these settings to avoid cache poisoning
+memcache_security_strategy = ENCRYPT
+memcache_secret_key = {{ memcached_encryption_key }}
+
+# if your keystone deployment uses PKI, and you value security over performance:
+check_revocations_for_cached = False
+
+[matchmaker_redis]
+
+[neutron]
+url = {{ neutron_service_adminurl }}
+region_name = {{ neutron_service_region }}
+auth_type = password
+# Keystone client plugin password option
+password = {{ neutron_service_password }}
+# Keystone client plugin username option
+username = {{ neutron_service_user_name }}
+project_name = {{ neutron_service_project_name }}
+user_domain_name = {{ neutron_service_domain_name |default("Default") }}
+project_domain_name = {{ neutron_service_domain_name |default("Default") }}
+# Keystone client plugin authentication URL option
+auth_url = {{ keystone_service_adminurl }}
+insecure = {{ keystone_service_adminuri_insecure | bool }}
+
+[oneview]
+
+[oslo_concurrency]
+lock_path = {{ ironic_lock_path }}
+
+[oslo_messaging_amqp]
+
+[oslo_messaging_notifications]
+
+[oslo_messaging_rabbit]
+rabbit_port = {{ ironic_rabbitmq_port }}
+rabbit_userid = {{ ironic_rabbitmq_userid }}
+rabbit_password = {{ ironic_rabbitmq_password }}
+rabbit_virtual_host = {{ ironic_rabbitmq_vhost }}
+rabbit_hosts = {{ ironic_rabbitmq_servers }}
+rabbit_use_ssl = {{ ironic_rabbitmq_use_ssl }}
+pool_max_size = {{ ironic_wsgi_processes }}
+
+
+[oslo_policy]
+
+[pxe]
+tftp_server = {{ ironic_tftp_server_address }}
+pxe_append_params = {{ ironic_pxe_append_params }}
+
+[seamicro]
+
+[snmp]
+
+[ssh]
+
+[ssl]
+
+[swift]
+
+[virtualbox]

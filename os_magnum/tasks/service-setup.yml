@@ -1,0 +1,135 @@
+---
+# Copyright 2016, Ian Cordasco
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Ensure the service for Magnum exists
+  keystone:
+    command: "ensure_service"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+    service_name: "{{ magnum_service_name }}"
+    service_type: "{{ magnum_service_type }}"
+    description: "{{ magnum_service_description }}"
+  register: add_magnum_service
+  until: add_magnum_service |success
+  retries: 5
+  delay: 2
+
+- name: Ensure the magnum user exists
+  keystone:
+    command: "ensure_user"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+    user_name: "{{ magnum_service_user_name }}"
+    tenant_name: "{{ magnum_service_project_name }}"
+    password: "{{ magnum_service_password |default('changeme') }}"
+  register: add_magnum_user
+  until: add_magnum_user |success
+  retries: 5
+  delay: 2
+
+- name: Ensure the magnum user has the admin role
+  keystone:
+    command: "ensure_user_role"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    user_name: "{{ magnum_service_user_name }}"
+    tenant_name: "{{ magnum_service_project_name }}"
+    role_name: "{{ item }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: ensure_magnum_roles
+  until: ensure_magnum_roles |success
+  retries: 5
+  delay: 2
+  with_items: "{{ magnum_service_role_names }}"
+
+- name: Ensure the magnum endpoint is registered
+  keystone:
+    command: "ensure_endpoint"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+    region_name: "{{ magnum_service_region }}"
+    service_name: "{{ magnum_service_name }}"
+    service_type: "{{ magnum_service_type }}"
+    endpoint_list:
+      - url: "{{ magnum_service_publicurl }}"
+        interface: "public"
+      - url: "{{ magnum_service_internalurl }}"
+        interface: "internal"
+      - url: "{{ magnum_service_adminurl }}"
+        interface: "admin"
+  register: add_magnum_endpoints
+  until: add_magnum_endpoints |success
+  retries: 5
+  delay: 2
+
+- name: Ensure the magnum trustee domain exists
+  keystone:
+    command: "ensure_domain"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+    domain_name: "{{ magnum_trustee_domain_name }}"
+    domain_enabled: true
+  register: add_magnum_trustee_user
+  until: add_magnum_trustee_user |success
+  retries: 5
+  delay: 2
+
+- name: Ensure the magnum trustee user exists
+  keystone:
+    command: "ensure_user"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+    user_name: "{{ magnum_trustee_domain_admin_name }}"
+    domain_name: "{{ magnum_trustee_domain_name }}"
+    project_name: "{{ magnum_service_project_name }}"
+    password: "{{ magnum_trustee_password |default('changeme') }}"
+  register: add_magnum_trustee_user
+  until: add_magnum_trustee_user |success
+  retries: 5
+  delay: 2
+
+- name: Ensure the magnum user has the admin role
+  keystone:
+    command: "ensure_user_role"
+    endpoint: "{{ keystone_service_adminurl }}"
+    login_user: "{{ keystone_admin_user_name }}"
+    login_password: "{{ keystone_auth_admin_password }}"
+    login_project_name: "{{ keystone_admin_tenant_name }}"
+    user_name: "{{ magnum_trustee_domain_admin_name }}"
+    role_name: "{{ item }}"
+    domain_name: "{{ magnum_trustee_domain_name }}"
+    insecure: "{{ keystone_service_adminuri_insecure }}"
+  register: ensure_magnum_trustee_roles
+  until: ensure_magnum_trustee_roles |success
+  retries: 5
+  delay: 2
+  with_items: "{{ magnum_trustee_domain_admin_roles }}"

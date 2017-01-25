@@ -1,0 +1,12 @@
+{{ rsyslog_server_storage_directory }}/**/*.log
+{
+        copytruncate
+        weekly
+        missingok
+        rotate {{ rsyslog_server_logrotation_window }}
+        compress
+        dateext
+        maxage 60
+        notifempty
+        nocreate
+}

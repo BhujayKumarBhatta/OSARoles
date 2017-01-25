@@ -1,0 +1,7 @@
+- name: Installation and setup of Neutron
+  hosts: neutron_all
+  user: root
+  roles:
+    - { role: "os_neutron", tags: [ "neutron-install", "neutron-config" ] }
+  vars:
+    neutron_galera_address: "{{ internal_lb_vip_address }}"

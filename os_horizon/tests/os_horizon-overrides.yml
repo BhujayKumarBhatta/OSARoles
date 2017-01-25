@@ -1,0 +1,63 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+horizon_developer_mode: true
+horizon_venv_tag: "testing"
+horizon_git_install_branch: stable/newton
+horizon_requirements_git_install_branch: stable/newton
+horizon_galera_address: "{{ test_galera_host }}"
+horizon_galera_database: dash
+horizon_galera_user: dash
+horizon_rabbitmq_password: "secrete"
+horizon_rabbitmq_userid: horizon
+horizon_rabbitmq_vhost: /horizon
+horizon_container_mysql_password: "SuperSecrete"
+horizon_secret_key: "SuperSecreteHorizonKey"
+horizon_external_ssl: False
+horizon_ssl_protocol: "ALL -SSLv2 -SSLv3"
+horizon_ssl_cipher_suite: "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS"
+
+# User for nova service registration required for Horizon tempest tests
+nova_service_name: nova
+nova_service_type: compute
+nova_service_description: "Nova Compute Service"
+nova_service_port: 8774
+nova_service_proto: http
+nova_service_region: RegionOne
+nova_service_publicuri: "{{ nova_service_proto }}://{{ external_lb_vip_address }}:{{ nova_service_port }}"
+nova_service_publicurl: "{{ nova_service_publicuri }}/v2.1/%(tenant_id)s"
+nova_service_adminuri: "{{ nova_service_proto }}://{{ internal_lb_vip_address }}:{{ nova_service_port }}"
+nova_service_adminurl: "{{ nova_service_adminuri }}/v2.1/%(tenant_id)s"
+nova_service_internaluri: "{{ nova_service_proto }}://{{ internal_lb_vip_address }}:{{ nova_service_port }}"
+nova_service_internalurl: "{{ nova_service_internaluri }}/v2.1/%(tenant_id)s"
+
+tempest_dashboard_login_url: "https://{{ hostvars[groups['horizon_all'][0]]['ansible_host'] }}/auth/login/"
+tempest_dashboard_url: "https://{{ hostvars[groups['horizon_all'][0]]['ansible_host'] }}/"
+
+tempest_venv_tag: "{{ tempest_git_install_branch }}"
+# tempest_bin is the same as the default in os_tempest role, but we set
+# it again here so we can refer to it in test-horizon-functional.yml
+tempest_bin: "/opt/tempest_{{ tempest_venv_tag }}/bin"
+tempest_plugins:
+  - name: tempest-horizon
+    repo: https://github.com/trumant/tempest-horizon
+    branch: toggle_cert_validation
+
+tempest_tempest_conf_overrides:
+  dashboard:
+    disable_ssl_certificate_validation: True
+
+horizon_config_overrides:
+  X_TEST_OPTION: True

@@ -1,0 +1,19 @@
+ETCD_NAME="{{ inventory_hostname }}"
+ETCD_INITIAL_CLUSTER="{% for host in groups[etcd_cluster_group] %}{{ host }}={{ etcd_access_method }}://{{ hostvars[host]['ansible_host'] }}:{{ etcd_peer_port }}{% if not loop.last %},{% endif %}{% endfor %}"
+ETCD_DATA_DIR="{{ etcd_data_dir }}"
+{% if etcd_install_type == 'proxy' %}
+ETCD_PROXY="on"
+{% elif etcd_install_type == 'server' %}
+{% if etcd_access_method == 'https' %}
+ETCD_CERT_FILE="{{ etcd_ssl_cert }}"
+ETCD_KEY_FILE="{{ etcd_ssl_key }}"
+ETCD_PEER_CERT_FILE="{{ etcd_ssl_cert }}"
+ETCD_PEER_KEY_FILE="{{ etcd_ssl_key }}"
+{% endif %}
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="{{ etcd_initial_token }}"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="{{ etcd_access_method }}://{{ ansible_host }}:{{ etcd_peer_port }}"
+ETCD_LISTEN_PEER_URLS="{{ etcd_access_method }}://{{ ansible_host }}:{{ etcd_peer_port }}"
+ETCD_LISTEN_CLIENT_URLS="{% for port in etcd_client_ports %}{{ etcd_access_method }}://127.0.0.1:{{ port }}{% if ansible_host != '127.0.0.1' %},{{ etcd_access_method }}://{{ ansible_host }}:{{ port }}{% endif %}{% if not loop.last %},{% endif %}{% endfor %}"
+ETCD_ADVERTISE_CLIENT_URLS="{% for port in etcd_client_ports %}{{ etcd_access_method }}://{{ ansible_host }}:{{ port }}{% if not loop.last %},{% endif %}{% endfor %}"
+{% endif %}

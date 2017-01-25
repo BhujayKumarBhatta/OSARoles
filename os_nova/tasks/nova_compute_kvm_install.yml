@@ -1,0 +1,82 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Check the state of the default qemu save directory
+  stat:
+    path: "/var/lib/libvirt/qemu/save"
+  until: _qemu_save_dir.stat.exists | bool
+  retries: 5
+  delay: 10
+  register: _qemu_save_dir
+
+- name: Check if the qemu save directory is empty
+  shell: 'ls -1A /var/lib/libvirt/qemu/save'
+  register: _qemu_save_dir_contents
+
+- name: Move the existing save directory to nova_libvirt_save_path
+  command: "mv /var/lib/libvirt/qemu/save {{ nova_libvirt_save_path }}"
+  when:
+    - _qemu_save_dir.stat.isdir is defined
+    - _qemu_save_dir.stat.isdir | bool
+    - _qemu_save_dir_contents.stdout_lines | length == 0
+
+- name: Create the new save directory
+  file:
+    path: "{{ nova_libvirt_save_path }}"
+    state: directory
+
+- name: Symlink qemu save dir to nova_libvirt_save_path
+  file:
+    src: "{{ nova_libvirt_save_path }}"
+    dest: "/var/lib/libvirt/qemu/save"
+    state: link
+    owner: "{{ nova_qemu_user }}"
+    group: "{{ nova_qemu_group }}"
+
+- name: Install pip packages
+  pip:
+    name: "{{ nova_compute_pip_packages | join(' ') }}"
+    state: latest
+    virtualenv: "{{ nova_bin | dirname }}"
+    virtualenv_site_packages: "no"
+    extra_args: "{{ pip_install_options|default('') }}"
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  when:
+    - nova_get_venv | failed or nova_developer_mode | bool
+  tags:
+    - nova-install
+    - nova-pip-packages
+
+# TODO(cloudnull): use a package from pypi when its made available
+# This is being done because guestfs is not an installable package at this time.
+#  There is a change in the works to upload the guestfs package to pypi in the
+#  future however that's not been done as of yet.
+#  related thread http://lists.openstack.org/pipermail/openstack-dev/2015-July/070927.html
+#  link on bug about libguestfs on pypi https://bugzilla.redhat.com/show_bug.cgi?id=1075594
+- name: Link guestfs into the venv
+  file:
+    src: "{{ item.name }}"
+    dest: "{{ nova_bin | dirname }}/lib/python2.7/{{ item.name | basename }}"
+    state: "{{ item.state }}"
+    force: "yes"
+  with_items:
+    - { state: link, name: "/usr/lib/python2.7/dist-packages/libguestfsmod.so" }
+    - { state: link, name: "/usr/lib/python2.7/dist-packages/guestfs.py" }
+  tags:
+    - nova-install
+    - nova-pip-packages

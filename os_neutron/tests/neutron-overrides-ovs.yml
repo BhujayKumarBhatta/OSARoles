@@ -1,0 +1,8 @@
+---
+openstack_host_specific_kernel_modules:
+  - name: "openvswitch"
+    pattern: "CONFIG_OPENVSWITCH="
+    group: "physical_host"
+
+neutron_plugin_type: ml2.ovs
+neutron_local_ip: "{{ ansible_host }}"

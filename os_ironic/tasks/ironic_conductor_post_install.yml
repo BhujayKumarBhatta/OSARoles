@@ -1,0 +1,58 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Copy in sample dhcpd.conf file
+  copy:
+    src: dhcpd.conf
+    dest: /etc/dhcp/
+  when: ironic_standalone
+  notify:
+    - Restart isc-dhcp-server
+
+- name: Create /tftpboot
+  file:
+    path: "/tftpboot"
+    state: directory
+    owner: "{{ ironic_system_user_name }}"
+    group: "{{ ironic_system_group_name }}"
+    mode: "0755"
+
+- name: Copy in tftpd-hpa config file
+  template:
+    src: tftpd-hpa.j2
+    dest: /etc/default/tftpd-hpa
+  notify:
+    - Restart tftpd-hpa
+
+- name: Copy in tftpd-hpa map file
+  copy:
+    src: map-file
+    dest: /tftpboot/map-file
+  notify:
+    - Restart tftpd-hpa
+
+## TODO(odyssey4me): Switch this to the copy module and make use of
+## remote_src: True once we move to Ansible 2.x. For Ansible 1.9x
+## there is no idempotent way of doing this without several tasks
+## which is a wasted effort.
+- name: Copy syslinux pxlinux.0
+  command: "cp {{ ironic_pxelinux_path }} /tftpboot/pxelinux.0"
+
+## TODO(odyssey4me): Switch this to the copy module and make use of
+## remote_src: True once we move to Ansible 2.x. For Ansible 1.9x
+## there is no idempotent way of doing this without several tasks
+## which is a wasted effort.
+- name: Copy syslinux chain.c32
+  command: "cp {{ ironic_chainc32_path }} /tftpboot/chain.c32"

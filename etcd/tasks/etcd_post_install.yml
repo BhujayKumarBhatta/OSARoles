@@ -1,0 +1,59 @@
+---
+# Copyright 2016, Logan Vig <logan2211@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Ensure etcd configuration directory exists
+  file: path="{{ etcd_conf_dir }}" state=directory
+  tags:
+    - etcd-config
+
+- include: etcd_post_install_ssl.yml
+  static: no
+  when:
+    - "{{ etcd_user_ssl_cert is defined }}"
+    - "{{ etcd_user_ssl_key is defined }}"
+
+- name: Ensure etcd data directory exists
+  file:
+    path: "{{ etcd_data_dir }}"
+    state: directory
+    owner: "etcd"
+    group: "etcd"
+    mode: "0755"
+  tags:
+    - etcd-config
+
+- name: Set etcd access method (http/https)
+  set_fact: etcd_access_method="{% if etcd_user_ssl_cert is defined and etcd_user_ssl_key is defined  %}https{% else %}http{% endif %}"
+  run_once: true
+  tags:
+    - etcd-config
+    - etcd-verify
+
+- include: etcd_init.yml
+
+- name: Flush handlers
+  meta: flush_handlers
+
+- name: Verify etcd cluster health
+  command: etcdctl cluster-health
+  register: etcd_health
+  failed_when: etcd_health.rc != 0
+  until: etcd_health|success
+  retries: 5
+  delay: 2
+  when: inventory_hostname == groups[etcd_cluster_group][0]
+  tags:
+    - etcd-config
+    - etcd-verify

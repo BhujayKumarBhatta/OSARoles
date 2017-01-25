@@ -1,0 +1,110 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+## Verbosity Options
+debug: False
+
+## SSH connection wait time
+lxc_container_ssh_delay: 5
+
+lxc_container_config: /etc/lxc/lxc-openstack.conf
+lxc_container_default_config_list:
+  - "lxc.start.auto=1"
+  - "lxc.start.delay=15"
+  - "lxc.group=onboot"
+  - "lxc.group=openstack"
+  - "lxc.autodev=1"
+  - "lxc.pts=1024"
+  - "lxc.kmsg=0"
+  - "lxc.hook.autodev=/var/lib/lxc/{{ inventory_hostname }}/autodev"
+lxc_container_config_list: []
+lxc_container_commands: ""
+
+# A list of bind mounts to configure for the container, for example:
+# lxc_container_bind_mounts:
+#   - host_directory: "/openstack/{{ inventory_hostname }}/mydirectory"
+#     container_directory: "/opt/mydirectory"
+lxc_container_bind_mounts: []
+
+lxc_container_default_bind_mounts:
+  - host_directory: "/openstack/backup/{{ inventory_hostname }}"
+    container_directory: "/var/backup"
+
+# When using a base container to snapshot from for the overlayfs or LVM
+# copy-on-write backing stored, the base container can be set.
+lxc_container_base_name: "{{ lxc_container_map.distro }}-{{ lxc_container_map.release }}-{{ lxc_container_map.arch }}"
+
+# Mappings from Ansible reported architecture to distro release architecture
+lxc_architecture_mapping:
+  x86_64: amd64
+  ppc64le: ppc64el
+
+# lxc container rootfs directory and cache path
+lxc_container_directory: "/var/lib/lxc"
+lxc_container_cache_path: "/var/cache/lxc"
+lxc_container_log_path: "/var/log/lxc"
+lxc_container_rootfs_directory: "{{ lxc_container_directory }}/{{ container_name }}/rootfs"
+
+# container_fs.* is only used with building on an LVM backend
+lxc_container_fs_size: 5G
+lxc_container_fs_type: ext4
+
+# The container backing store can be set to 'overlayfs' to use overlayfs
+# This should only be done for production use with a linux kernel > 3.14
+# which is when overlayfs was merged into the mainline kernel.
+# lxc_container_backing_store: overlayfs
+# Other store options are "dir" and "lvm".
+
+# If the container backing store is LVM, the automatic detection will
+# require the presence of the lxc_container_vg_name volume group. If
+# this is not found then the automatic detection will fail back to
+# using the directory backing.
+lxc_container_vg_name: lxc
+
+lxc_container_default_mtu: "1500"
+
+lxc_container_domain: "openstack.local"
+
+# LXC image server
+lxc_image_cache_server: images.linuxcontainers.org
+
+## Default download template options
+##  This can be customized to use a local build server and options.
+##  By default these options will be fulfilled by the distro specific
+##  variable files found in vars/
+# lxc_container_download_template_options: >
+#   --dist NAME_OF_DISTRO
+#   --release DISTRO_RELEASE
+#   --arch CONTAINER_ARCH
+#   --force-cache
+#   --server SERVER_TO_GET_IMAGES_FROM
+lxc_container_template: download
+lxc_container_variant: default
+lxc_container_download_template_options: >
+  --dist {{ lxc_container_map.distro }}
+  --release {{ lxc_container_map.release }}
+  --arch {{ lxc_container_map.arch }}
+  --force-cache
+  --server {{ lxc_image_cache_server }}
+  --variant={{ lxc_container_variant }}
+
+# Toggle the restart of containers via the handler.
+lxc_container_allow_restarts: yes
+
+lxc_container_network_veth_pair: "{{ inventory_hostname[-8:].replace('-', '').replace('_', '') }}_{{ item.value.interface }}"
+
+# Enable fixed mac address generation for an lxc container
+lxc_container_fixed_mac: false
+

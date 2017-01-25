@@ -1,0 +1,117 @@
+---
+- name: Setup testing - run Swift functional tests
+  hosts: swift_proxy[0]
+  user: root
+  gather_facts: true
+  pre_tasks:
+  - name: Ensure test projects
+    keystone:
+      command: "ensure_tenant"
+      endpoint: "{{ keystone_service_adminurl }}"
+      login_user: "{{ keystone_admin_user_name }}"
+      login_password: "{{ keystone_auth_admin_password }}"
+      login_project_name: "{{ keystone_admin_tenant_name }}"
+      description: "Testing tenant"
+      tenant_name: "{{item.project_name }}"
+      domain_name: "{{ item.domain_name }}"
+      insecure: "{{ keystone_service_adminuri_insecure }}"
+    with_items:
+      - { project_name: "test1", domain_name: "Default" }
+      - { project_name: "test2", domain_name: "Default" }
+      - { project_name: "test5", domain_name: "Default" }
+      - { project_name: "test6", domain_name: "Default" }
+    register: add_service
+    run_once: true
+    until: add_service|success
+    retries: 5
+    delay: 10
+  - name: Ensure required roles
+    keystone:
+      command: "ensure_role"
+      endpoint: "{{ keystone_service_adminurl }}"
+      login_user: "{{ keystone_admin_user_name }}"
+      login_password: "{{ keystone_auth_admin_password }}"
+      login_project_name: "{{ keystone_admin_tenant_name }}"
+      role_name: "{{ item }}"
+      insecure: "{{ keystone_service_adminuri_insecure }}"
+    with_items:
+      - "test-role"
+      - "test5"
+    run_once: true
+    register: add_service
+    until: add_service|success
+    retries: 5
+    delay: 10
+  - name: Add swift users for testing
+    keystone:
+      command: "ensure_user"
+      endpoint: "{{ keystone_service_adminurl }}"
+      login_user: "{{ keystone_admin_user_name }}"
+      login_password: "{{ keystone_auth_admin_password }}"
+      login_project_name: "{{ keystone_admin_tenant_name }}"
+      user_name: "{{ item.user_name }}"
+      project_name: "{{ item.project_name }}"
+      domain_name: "{{ item.domain_name }}"
+      password: "{{ item.password }}"
+      insecure: "{{ keystone_service_adminuri_insecure }}"
+    with_items:
+      - { user_name: "test1", project_name: "test1", password: "test1", domain_name: "Default" }
+      - { user_name: "test2", project_name: "test2", password: "test2", domain_name: "Default" }
+      - { user_name: "test3", project_name: "test1", password: "test3", domain_name: "Default" }
+      - { user_name: "test5", project_name: "test5", password: "test5", domain_name: "Default" }
+      - { user_name: "test6", project_name: "test6", password: "test6", domain_name: "Default" }
+    run_once: true
+    register: add_service
+    until: add_service|success
+    retries: 5
+    delay: 10
+  - name: Ensure roles for swift test users
+    keystone:
+      command: "ensure_user_role"
+      endpoint: "{{ keystone_service_adminurl }}"
+      login_user: "{{ keystone_admin_user_name }}"
+      login_password: "{{ keystone_auth_admin_password }}"
+      login_project_name: "{{ keystone_admin_tenant_name }}"
+      user_name: "{{ item.user_name }}"
+      domain_name: "{{ item.domain_name }}"
+      project_name: "{{ item.project_name }}"
+      role_name: "{{ item.role_name }}"
+      insecure: "{{ keystone_service_adminuri_insecure }}"
+    with_items:
+      - { user_name: "test1", project_name: "test1", role_name: "admin", domain_name: "Default" }
+      - { user_name: "test2", project_name: "test2", role_name: "admin", domain_name: "Default" }
+      - { user_name: "test3", project_name: "test1", role_name: "test-role", domain_name: "Default" }
+      - { user_name: "test5", project_name: "test5", role_name: "test5", domain_name: "Default" }
+      - { user_name: "test6", project_name: "test6", role_name: "ResellerAdmin", domain_name: "Default" }
+    retries: 5
+    run_once: true
+    register: add_service
+    until: add_service|success
+    retries: 5
+    delay: 10
+  - name: Clone swift repository on proxy-host
+    git:
+      repo: "https://git.openstack.org/openstack/swift"
+      dest: "/opt/swift"
+      update: yes
+      clone: yes
+      version: "{{ swift_git_install_branch }}"
+  - name: Install requirements for swift
+    pip:
+      requirements: "{{ item }}"
+      virtualenv: "{{ swift_venv_bin | dirname }}"
+    with_items:
+      - "/opt/swift/test-requirements.txt"
+  - name: Setup test.conf for testing
+    template:
+      src: "swift_test.conf.j2"
+      dest: "/etc/swift/test.conf"
+      owner: "swift"
+      group: "swift"
+  - name: Run functional tests for swift
+    shell: "source /openstack/venvs/swift-untagged/bin/activate && ./.functests"
+    args:
+      chdir: "/opt/swift/"
+      executable: "/bin/bash"
+  vars_files:
+    - common/test-vars.yml

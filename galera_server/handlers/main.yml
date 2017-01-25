@@ -1,0 +1,60 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Reload the systemd daemon
+  command: "systemctl daemon-reload"
+  when:
+    - ansible_service_mgr == 'systemd'
+
+- name: Restart mysql
+  service:
+    name: mysql
+    state: restarted
+    sleep: 2
+    pattern: mysql
+    args: "{{ (not galera_existing_cluster | bool and inventory_hostname == galera_server_bootstrap_node) | ternary('--wsrep-new-cluster', '') }}"
+  environment:
+    MYSQLD_STARTUP_TIMEOUT: 180
+  when:
+     - not galera_running_and_bootstrapped | bool
+  register: galera_restart
+  until: galera_restart | success
+  retries: 3
+  delay: 5
+  # notifies are only fired when status is "changed"
+  changed_when: galera_restart | failed
+  failed_when: false
+  notify:
+    - "Remove stale .sst"
+    - "Restart mysql fall back"
+
+- name: Remove stale .sst
+  file:
+    path: "/var/lib/mysql/.sst"
+    state: absent
+
+- name: Restart mysql fall back
+  service:
+    name: mysql
+    state: restarted
+    sleep: 2
+    pattern: mysql
+    args: "{{ (not galera_existing_cluster | bool and inventory_hostname == galera_server_bootstrap_node) | ternary('--wsrep-new-cluster', '') }}"
+  environment:
+    MYSQLD_STARTUP_TIMEOUT: 180
+  register: galera_restart_fall_back
+  until: galera_restart_fall_back | success
+  retries: 3
+  delay: 5

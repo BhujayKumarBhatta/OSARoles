@@ -1,0 +1,32 @@
+---
+# Copyright 2016, IBM.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Ansible synchronize module not used here due to remote user setting not
+# working on the delegated host (as of ansible 2.1)
+- name: Synchronize and Copy repo files
+  command: >
+    rsync
+    --delay-updates -F --compress  --archive
+    --rsh 'ssh -l {{ repo_build_service_user_name }} -o stricthostkeychecking=no'
+    --out-format='<<CHANGED>>%i %n%L'
+    {{ item }}
+    {{ repo_build_service_user_name }}@{{ hostvars[groups['repo_all'][0]]['ansible_host'] }}:{{ repo_build_base_path }}
+  with_items:
+    - "{{ repo_build_global_links_path }}"
+    - "{{ repo_build_release_path }}"
+    - "{{ repo_build_pool_dir }}"
+    - "{{ repo_build_venv_dir }}"
+  become: true
+  become_user: "{{ repo_build_service_user_name }}"

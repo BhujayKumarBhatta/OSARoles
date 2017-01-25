@@ -1,0 +1,113 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Drop lxc net bridge
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items: "{{ lxc_cached_network_interfaces }}"
+  notify:
+    - Bring bridge up
+  tags:
+    - lxc-files
+    - lxc-net
+    - lxc-bridge
+    - lxc-interfaces
+
+# All Debian installations of LXC use the lxc-net service. This service breaks our network
+#  model and needs to be disabled
+- name: Disable and stop lxc-net
+  service:
+    name: lxc-net
+    enabled: no
+    state: stopped
+  when:
+    - ansible_os_family == "Debian"
+  tags:
+    - lxc-net
+
+# All installations of LXC will need to have the
+#  the lxc-net service override in place to ensure its not restarted on system boot
+- name: Drop lxc-net override file for upstart
+  template:
+    src: manual-init.override.j2
+    dest: /etc/init/lxc-net.override
+    owner: root
+    group: root
+    mode: 0644
+  when:
+    - ansible_service_mgr == 'upstart'
+  tags:
+    - lxc-files
+    - lxc-net
+
+- name: Mask lxc-net systemd service
+  file:
+    src: /dev/null
+    path: /etc/systemd/system/lxc-net.service
+    state: link
+  when:
+    - ansible_service_mgr == 'systemd'
+  tags:
+    - lxc-files
+    - lxc-net
+
+# All Debian based systems use the interfaces.d directory for extra network configs
+#  this check ensures the needed source line is in the base config file
+- name: Ensure networking includes interfaces.d
+  lineinfile:
+    dest: "/etc/network/interfaces"
+    line: "source /etc/network/interfaces.d/*.cfg"
+    backup: "yes"
+  when:
+    - ansible_os_family == "Debian"
+  tags:
+    - lxc-net
+    - lxc-interfaces
+
+- name: Drop lxc net bridge - Debian
+  template:
+    src: "lxc-net-bridge.cfg.j2"
+    dest: "/etc/network/interfaces.d/lxc-net-bridge.cfg"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  when:
+    - ansible_os_family == "Debian"
+  notify:
+    - Restart bridge
+  tags:
+    - lxc-files
+    - lxc-net
+    - lxc-bridge
+
+# Check that the container bridge exists, if not bring it up
+- name: Check Container Bridge exists
+  file:
+    state: "file"
+    path: "/sys/class/net/{{ lxc_net_bridge }}/bridge/bridge_id"
+  register: bridge_check
+  failed_when: false
+  changed_when: bridge_check.state == 'absent'
+  notify:
+    - Bring bridge up
+  tags:
+    - lxc-bridge
+
+# Ensure lxc networks are running as they're supposed to
+- meta: flush_handlers

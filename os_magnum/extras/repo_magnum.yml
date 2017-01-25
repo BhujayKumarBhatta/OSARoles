@@ -1,0 +1,4 @@
+## Magnum service
+magnum_git_repo: https://git.openstack.org/openstack/magnum
+magnum_git_install_branch: stable/newton
+magnum_git_dest: "/opt/magnum_{{ magnum_git_install_branch | replace('/', '_') }}"

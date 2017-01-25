@@ -1,0 +1,66 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Playbook for functional testing of magnum
+  hosts: magnum_all
+  user: root
+  gather_facts: false
+  pre_tasks:
+    - name: Install testing pip packages
+      pip:
+        name: "python-openstackclient"
+    # using the glance library with a large image sometimes results in an incomplete image
+    # this should be more reliable
+    - name: Download magnum fedora-atomic-newton image
+      get_url:
+        url: "https://fedorapeople.org/groups/magnum/fedora-atomic-newton.qcow2"
+        dest: "/var/tmp/fedora-atomic-newton.qcow2"
+      register: image_download
+    - name: Upload magnum fedora-atomic-newton image to glance
+      shell: |
+        . /root/openrc
+        openstack image create \
+                      --disk-format=qcow2 \
+                      --container-format=bare \
+                      --file=/var/tmp/fedora-atomic-newton.qcow2 \
+                      --property os_distro='fedora-atomic' \
+                      --public \
+                      fedora-atomic-newton
+      when: image_download | changed
+    # a flavor with a larger disk size is required for the magnum image
+    - name: Check if m1.magnum flavor 100 exists
+      shell: |
+        . /root/openrc
+        nova flavor-show m1.magnum
+      register: m1magnum
+      failed_when: False
+      changed_when: m1magnum.rc != 0
+    - name: Create m1.magnum flavor 100
+      shell: |
+        . /root/openrc
+        nova flavor-create m1.magnum 100 1024 10 1
+      when:
+        - m1magnum.rc != 0
+  tasks:
+    - name: Run tempest
+      shell: |
+        . {{ tempest_venv_bin }}/activate
+        {{ tempest_venv_bin | dirname }}/run_tempest.sh --no-virtual-env ${RUN_TEMPEST_OPTS} \
+        magnum.tests.functional.api.v1.test_cluster.ClusterTest.test_create_cluster*
+      environment:
+        RUN_TEMPEST_OPTS: "--serial"
+  vars_files:
+    - common/test-vars.yml
+    - magnum-test-vars.yml

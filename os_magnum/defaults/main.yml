@@ -1,0 +1,113 @@
+---
+# Copyright 2016, Ian Cordasco
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Set the package install state for distribution packages
+# Options are 'present' and 'latest'
+magnum_package_state: "latest"
+
+magnum_system_group_name: magnum
+magnum_system_user_name: magnum
+magnum_system_user_comment: Magnum System User
+magnum_system_user_shell: /bin/false
+magnum_system_user_home: "/var/lib/{{ magnum_system_user_name }}"
+magnum_log_directory: /var/log/magnum
+magnum_etc_directory: /etc/magnum
+
+magnum_api_program_name: magnum-api
+magnum_conductor_program_name: magnum-conductor
+
+magnum_service_name: magnum
+magnum_service_user_name: magnum
+magnum_service_type: container-infra
+magnum_service_description: "OpenStack Containers (Magnum)"
+magnum_service_project_name: service
+magnum_service_role_names:
+  - admin
+magnum_service_region: RegionOne
+magnum_bind_port: 9511
+magnum_service_publicuri_proto: http
+magnum_service_publicurl: "{{ magnum_service_publicuri_proto }}://{{ external_lb_vip_address }}:{{ magnum_bind_port }}"
+magnum_service_internaluri_proto: http
+magnum_service_internalurl: "{{ magnum_service_internaluri_proto }}://{{ internal_lb_vip_address }}:{{ magnum_bind_port }}"
+magnum_service_adminuri_proto: http
+magnum_service_adminurl: "{{ magnum_service_adminuri_proto }}://{{ internal_lb_vip_address }}:{{ magnum_bind_port }}"
+
+magnum_config_overrides: {}
+magnum_policy_overrides: {}
+magnum_api_paste_ini_overrides: {}
+
+# Name of the virtual env to deploy into
+magnum_venv_tag: untagged
+magnum_bin: "/openstack/venvs/magnum-{{ magnum_venv_tag }}/bin"
+
+magnum_venv_download_url: http://127.0.0.1/venvs/untagged/ubuntu/magnum.tgz
+
+magnum_git_repo: "https://git.openstack.org/openstack/magnum"
+magnum_git_install_branch: stable/newton
+magnum_developer_mode: false
+magnum_developer_constraints:
+  - "git+{{ magnum_git_repo }}@{{ magnum_git_install_branch }}#egg=magnum"
+
+# Database vars
+magnum_galera_database_name: magnum_service
+magnum_galera_user: magnum
+
+# Rabbit vars
+magnum_rpc_backend: rabbit
+magnum_rabbitmq_userid: magnum
+magnum_rabbitmq_vhost: /magnum
+magnum_rabbitmq_servers: 127.0.0.1
+magnum_rabbitmq_use_ssl: False
+magnum_rabbitmq_port: 5672
+
+# Keystone AuthToken/Middleware
+magnum_keystone_auth_plugin: password
+magnum_service_project_domain_name: Default
+magnum_service_user_domain_name: default
+
+# Trustee User
+magnum_trustee_domain_admin_name: trustee_domain_admin
+magnum_trustee_domain_name: magnum
+magnum_trustee_domain_admin_roles: ['admin']
+
+#Glance images
+magnum_glance_images: []
+## Example Glance Image - Fedora Atomic
+#  - name: fedora-atomic-latest         #Name of the image in Glance
+#    disk_format: qcow2                 #Disk format (e.g. qcow2)
+#    image_format: bare                 #Image format
+#    public: true                       #Boolean - is the image public
+#    file: https://fedorapeople.org/groups/magnum/fedora-atomic-latest.qcow2
+#    distro: fedora-atomic              #Value for the os_distro metadata
+
+magnum_requires_pip_packages:
+  - httplib2
+  - python-glanceclient
+  - python-keystoneclient
+  - pyyaml
+  - virtualenv
+  - virtualenv-tools
+
+magnum_pip_packages:
+  - MySQL-python
+  - PyMySQL
+  - magnum
+  - python-memcached
+
+# This variable is used by the repo_build process to determine
+# which host group to check for members of before building the
+# pip packages required by this role. The value is picked up
+# by the py_pkgs lookup.
+magnum_role_project_group: magnum_all

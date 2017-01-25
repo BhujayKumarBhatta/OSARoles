@@ -1,0 +1,14 @@
+rabbitmq_host_group: "rabbitmq_all_other"
+rabbitmq_cookie_token: secrete
+rabbitmq_ssl_cert: /etc/rabbitmq/rabbitmq.pem
+rabbitmq_ssl_key: /etc/rabbitmq/rabbitmq.key
+
+rabbitmq_hipe_compile: True
+
+rabbitmq_old_package:
+  debian:
+    rabbitmq_package_url: "https://www.rabbitmq.com/releases/rabbitmq-server/v3.6.1/rabbitmq-server_3.6.1-1_all.deb"
+    rabbitmq_package_sha256: "0728fbdb14ec62712c6f931a7d91648cafbc6c30d8d4da790832e784b4d2e956"
+  redhat:
+    rabbitmq_package_url: "https://www.rabbitmq.com/releases/rabbitmq-server/v3.6.1/rabbitmq-server-3.6.1-1.noarch.rpm"
+    rabbitmq_package_sha256: "b688950915289a8596bdce35086b00ad08ee0e32567396c5bda850854642fac7"

@@ -1,0 +1,36 @@
+---
+# Copyright 2016, Logan Vig <logan2211@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+## APT Cache Options
+cache_timeout: 600
+
+etcd_gpg_keys:
+  - key_name: 'projectcalico'
+    keyserver: 'hkp://keyserver.ubuntu.com:80'
+    fallback_keyserver: 'hkp://p80.pool.sks-keyservers.net:80'
+    hash_id: '0x67d7e35b3d40a6a7'
+
+etcd_repo_pins:
+  - src: projectcalico_pin.pref.j2
+    dest: /etc/apt/preferences.d/projectcalico_pin.pref
+
+etcd_apt_repo_branch: stable
+etcd_apt_repo_url: "http://ppa.launchpad.net/project-calico/{{ etcd_apt_repo_branch }}/ubuntu"
+etcd_apt_repo:
+  - repo: "deb {{ etcd_apt_repo_url }} {{ ansible_distribution_release }} main"
+    state: "present"
+
+etcd_packages:
+  - etcd

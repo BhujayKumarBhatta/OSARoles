@@ -1,0 +1,109 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Packages need to be installed outside
+# of venv to be usable by Ansible
+
+- name: Test neutron
+  hosts: neutron_all
+  user: root
+  gather_facts: true
+  tasks:
+    - name: Install testing pip packages
+      pip:
+        name: "{{ item }}"
+      with_items:
+        - python-neutronclient
+        - httplib2
+
+    - name: Check the neutron api
+      uri:
+        url: "http://localhost:9696"
+        status_code: 200
+
+    # No assertion around this yet, just useful for debug purposes
+    # TODO(automagically) - Test for all expected agents and agent status
+    - name: Neutron agents status
+      shell: |
+         . /root/openrc
+         neutron agent-list
+      register: agent_list
+
+    - name: Ensure that the DHCP agent is alive
+      shell: |
+        . /root/openrc
+        neutron agent-list | grep DHCP
+      register: neutron_dhcp_agent
+      until: neutron_dhcp_agent.stdout.find(':-)') != -1
+      when:
+        - groups['neutron_dhcp_agent'] | length > 0
+      retries: 5
+      delay: 10
+
+    - name: Create test network
+      neutron:
+        command: create_network
+        openrc_path: /root/openrc
+        net_name: test-network
+
+    - name: Ensuring network is created correctly
+      shell: |
+        . /root/openrc
+        neutron net-list -c id -c name -f value | grep test-network
+      register: neutron_net_list
+      until: neutron_net_list.rc == 0
+      retries: 10
+      delay: 3
+
+    - name: Create test subnet
+      shell: |
+        . /root/openrc
+        neutron subnet-create --name test-subnet test-network 192.168.74.0/24
+      register: neutron_subnet_create
+
+    - name: Debug test subnet output
+      debug:
+        msg: "{{ neutron_subnet_create.stdout_lines }}"
+
+    - name: Ensuring subnet is created correctly
+      shell: |
+        . /root/openrc
+        neutron subnet-list -c id -c name -f value | grep test-subnet
+      register: neutron_subnet_list
+      until: neutron_subnet_list.rc == 0
+      retries: 10
+      delay: 3
+
+    - name: Include the DHCP agent functional tests
+      include: test-neutron-dhcp-functional.yml
+      when:
+        - groups['neutron_dhcp_agent'] | length > 0
+
+    - name: Check for iptables checksum rule
+      shell: |
+        ip netns exec {{ dhcp_namespace.stdout.split(' ')[0] }} iptables -C neutron-dhcp-age-POSTROUTING -t mangle -p udp --dport 68 -j CHECKSUM --checksum-fill
+      register: checksum_rule
+      until : checksum_rule.rc == 0
+      retries: 5
+      delay: 10
+      when:
+         - groups['neutron_linuxbridge_agent'] | length > 0
+
+  post_tasks:
+    - include: test-calico-functional.yml
+      when:
+        - "{{ neutron_plugin_type == 'ml2.calico' }}"
+  vars_files:
+    - common/test-vars.yml

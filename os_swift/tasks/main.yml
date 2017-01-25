@@ -1,0 +1,117 @@
+---
+# Copyright 2014, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Gather variables for each operating system
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
+    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+    - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+  tags:
+    - always
+
+# Check the swift_hash_path_* variables haven't changed
+- include: swift_check_hashes.yml
+  static: no
+  when: not swift_force_change_hashes | bool
+  tags:
+    - swift-config
+
+- include: swift_pre_install.yml
+  when:
+    - swift_do_setup | bool
+    - inventory_hostname in groups['swift_all']
+  tags:
+    - swift-install
+
+- include: swift_install.yml
+  when:
+    - swift_do_setup | bool
+    - inventory_hostname in groups['swift_all']
+  tags:
+    - swift-install
+
+- include: swift_post_install.yml
+  when:
+    - swift_do_setup | bool
+    - inventory_hostname in groups['swift_all']
+  tags:
+    - swift-config
+
+# We need swift_vars to exist for the "swift_vars.drives is defined check" to work
+- name: "Set swift_vars if undefined"
+  set_fact:
+    swift_vars: "{}"
+  when: swift_vars is not defined
+  tags:
+    - always
+
+- include: swift_calculate_addresses.yml
+  when:
+    - inventory_hostname in groups['swift_hosts']
+  tags:
+    - always
+
+- include: swift_storage_hosts.yml
+  when:
+    - inventory_hostname in groups['swift_hosts']
+    - swift_do_setup | bool
+  tags:
+    - swift-install
+    - swift-config
+
+- include: swift_proxy_hosts.yml
+  when:
+    - inventory_hostname in groups['swift_proxy']
+    - swift_do_setup | bool
+  tags:
+    - swift-config
+    - swift-install
+
+- include: swift_init_common.yml
+  tags:
+    - swift-install
+
+- include: swift_service_setup.yml
+  when:
+    - inventory_hostname == groups['swift_all'][0]
+    - '"keystoneauth" in swift_middleware_list'
+    - swift_do_setup | bool
+  tags:
+    - swift-install
+
+- include: swift_key_setup.yml
+  static: no
+  when: swift_do_sync | bool
+  tags:
+    - swift-config
+
+- include: swift_rings.yml
+  static: no
+  when: swift_do_sync | bool
+  tags:
+    - swift-install
+    - swift-config
+
+- name: Flush handlers
+  meta: flush_handlers
+
+- include: swift_sync_post_install.yml
+  static: no
+  when: swift_do_sync | bool
+  tags:
+    - always

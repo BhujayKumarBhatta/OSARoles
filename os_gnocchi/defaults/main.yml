@@ -1,0 +1,188 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#: Special role execution lifecycles
+# Only create Gnocchi's identity entities in Keystone
+gnocchi_identity_only: False
+
+#: Enable for debug logging level
+debug: false
+
+# Set the package install state for distribution packages
+# Options are 'present' and 'latest'
+gnocchi_package_state: "latest"
+
+# Toggle keystone authentication for gnocchi
+gnocchi_keystone_auth: no
+
+# These variables are used in 'developer mode' in order to allow the role
+# to build an environment directly from a git source without the presence
+# of an OpenStack-Ansible repo_server.
+gnocchi_git_repo: https://git.openstack.org/openstack/gnocchi
+gnocchi_git_install_branch: stable/3.0
+gnocchi_developer_mode: false
+gnocchi_developer_constraints:
+  - "git+{{ gnocchi_git_repo }}@{{ gnocchi_git_install_branch }}#egg=gnocchi"
+
+#: Use of deprecated config options will cause a fatal application error
+gnocchi_fatal_deprecations: false
+
+#: External SSL forwarding proto, assumes TLS termination at load balancer
+gnocchi_ssl_external: true
+gnocchi_secure_proxy_ssl_header: HTTP_X_FORWARDED_PROTO
+
+#: Set this to false to disable API service through Apache + mod_wsgi
+gnocchi_use_mod_wsgi: true
+
+#: Name of the virtual env to deploy into
+gnocchi_venv_tag: untagged
+gnocchi_bin: "/openstack/venvs/gnocchi-{{ gnocchi_venv_tag }}/bin"
+gnocchi_venv_pkgs: "/openstack/venvs/gnocchi-{{ gnocchi_venv_tag }}/lib/python2.7/site-packages"
+
+#: Set the etc dir path where gnocchi is installed.
+#  This is used for role access to the db migrations.
+#  Example:
+#  gnocchi_etc_dir: "/usr/local/etc/gnocchi"
+gnocchi_etc_dir: "{{ gnocchi_bin | dirname }}/etc/gnocchi"
+
+#: Location to retrieve the pre-built virtuelenv for gnocchi (optional)
+gnocchi_venv_download_url: http://127.0.0.1/venvs/untagged/ubuntu/gnocchi.tgz
+
+#: Index DB info
+gnocchi_galera_database: gnocchi
+gnocchi_galera_user: gnocchi
+gnocchi_galera_address: "{{ galera_address }}"
+gnocchi_db_sync_options: "--create-legacy-resource-types"
+
+#: Storage info
+gnocchi_storage_driver: file
+gnocchi_coordination_url: "mysql://{{ gnocchi_galera_user }}:{{ gnocchi_container_mysql_password }}@{{ gnocchi_galera_address }}/{{ gnocchi_galera_database }}?charset=utf8&timeout=5"
+
+#: Default Ceph parameters
+gnocchi_ceph_pool: "gnocchi"
+gnocchi_ceph_username: "gnocchi"
+
+#: Default Archive Policies
+gnocchi_archive_policies:
+  - name: "low"
+    definition:
+      - { granularity: "5m", points: 12 }
+      - { granularity: "1h", points: 24 }
+      - { granularity: "1d", points: 30 }
+  - name: "medium"
+    definition:
+      - { granularity: "60s", points: 60 }
+      - { granularity: "1h", points: 168 }
+      - { granularity: "1d", points: 365 }
+  - name: "high"
+    definition:
+      - { granularity: "1s", points: 86400 }
+      - { granularity: "1m", points: 43200 }
+      - { granularity: "1h", points: 8760 }
+
+gnocchi_archive_policy_rules:
+  - { name: "default", archive_policy_name: "low", metric_pattern: "*" }
+
+#: System info
+gnocchi_system_user_name: gnocchi
+gnocchi_system_group_name: gnocchi
+gnocchi_system_shell: /bin/false
+gnocchi_system_comment: gnocchi system user
+gnocchi_system_user_home: "/var/lib/{{ gnocchi_system_user_name }}"
+
+#: Service Type and Data
+gnocchi_service_name: gnocchi
+gnocchi_service_type: metric
+gnocchi_service_description: "OpenStack Metric Service"
+gnocchi_service_project_description: "OpenStack Services"
+gnocchi_keystone_auth_plugin: password
+gnocchi_service_region: RegionOne
+gnocchi_service_user_name: gnocchi
+gnocchi_role_name: admin
+gnocchi_service_project_name: "{{ (gnocchi_storage_driver == 'swift') | ternary('gnocchi_swift', 'service') }}"
+gnocchi_service_project_domain_id: default
+gnocchi_service_user_domain_id: default
+gnocchi_service_address: 0.0.0.0
+gnocchi_service_port: 8041
+gnocchi_service_proto: http
+gnocchi_service_registry_proto: "{{ gnocchi_service_proto }}"
+gnocchi_service_publicuri_proto: "{{ openstack_service_publicuri_proto | default(gnocchi_service_proto) }}"
+gnocchi_service_adminuri_proto: "{{ openstack_service_adminuri_proto | default(gnocchi_service_proto) }}"
+gnocchi_service_internaluri_proto: "{{ openstack_service_internaluri_proto | default(gnocchi_service_proto) }}"
+gnocchi_service_publicurl: "{{ gnocchi_service_publicuri_proto }}://{{ external_lb_vip_address }}:{{ gnocchi_service_port }}"
+gnocchi_service_internalurl: "{{ gnocchi_service_internaluri_proto }}://{{ internal_lb_vip_address }}:{{ gnocchi_service_port }}"
+gnocchi_service_adminurl: "{{ gnocchi_service_adminuri_proto }}://{{ internal_lb_vip_address }}:{{ gnocchi_service_port }}"
+
+## Apache setup
+gnocchi_apache_log_level: info
+gnocchi_apache_servertokens: "Prod"
+gnocchi_apache_serversignature: "Off"
+gnocchi_wsgi_threads: 1
+gnocchi_wsgi_processes: "{{ (ansible_processor_vcpus | int > 0) | ternary (ansible_processor_vcpus, 1) * 2 }}"
+
+# set gnocchi_ssl to true to enable SSL configuration on the gnocchi containers
+gnocchi_ssl: false
+gnocchi_ssl_cert: /etc/ssl/certs/gnocchi.pem
+gnocchi_ssl_key: /etc/ssl/private/gnocchi.key
+gnocchi_ssl_ca_cert: /etc/ssl/certs/gnocchi-ca.pem
+gnocchi_ssl_protocol: "{{ ssl_protocol | default('ALL -SSLv2 -SSLv3') }}"
+gnocchi_ssl_cipher_suite: "{{ ssl_cipher_suite | default('ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS') }}"
+
+# if using a self-signed certificate, set this to true to regenerate it
+gnocchi_ssl_self_signed_regen: false
+gnocchi_ssl_self_signed_subject: "/C=US/ST=Texas/L=San Antonio/O=IT/CN={{ internal_lb_vip_address }}/subjectAltName=IP.1={{ external_lb_vip_address }}"
+
+# Set these in user_variables to deploy custom certificates
+#gnocchi_user_ssl_cert: <path to cert on ansible deployment host>
+#gnocchi_user_ssl_key: <path to cert on ansible deployment host>
+#gnocchi_user_ssl_ca_cert: <path to cert on ansible deployment host>
+
+## Service Names
+gnocchi_services:
+  gnocchi-api:
+    group: "gnocchi_api"
+    service_name: "gnocchi-api"
+    service_enabled: "{{ gnocchi_use_mod_wsgi | ternary(false, true) }}"
+  gnocchi-metricd:
+    group: "gnocchi_metricd"
+    service_name: "gnocchi-metricd"
+    service_enabled: true
+
+#: Gnocchi packages that must be installed before anything else
+gnocchi_requires_pip_packages:
+  - virtualenv
+  - virtualenv-tools
+  - python-keystoneclient # Keystoneclient needed for OSA keystone lib
+  - gnocchiclient # gnocchiclient needed for gnocchi lib
+  - httplib2 # so we can use the uri module
+
+#: Common pip packages
+gnocchi_pip_packages:
+  - "gnocchi[mysql,file,swift,ceph]"
+  - keystonemiddleware
+  - gnocchiclient
+  - python-memcached
+  - pycrypto
+
+# This variable is used by the repo_build process to determine
+# which host group to check for members of before building the
+# pip packages required by this role. The value is picked up
+# by the py_pkgs lookup.
+gnocchi_role_project_group: gnocchi_all
+
+#: Tunable overrides
+gnocchi_conf_overrides: {}
+gnocchi_api_paste_ini_overrides: {}
+gnocchi_policy_overrides: {}

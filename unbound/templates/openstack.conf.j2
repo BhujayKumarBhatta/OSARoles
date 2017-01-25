@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+
+server:
+{% for container in groups['all'] %}
+  {%- if hostvars[container]['ansible_ssh_host'] is defined %}
+	local-data: "{{ container }}.{{ unbound_regional_zone }} A {{ hostvars[container]['ansible_ssh_host'] }}"
+  {% set target_rfc_1034_1035_name = container|replace('_', '-') %}
+	{% if target_rfc_1034_1035_name != container %}
+	local-data: "{{ target_rfc_1034_1035_name }}.{{ unbound_regional_zone }} A {{ hostvars[container]['ansible_ssh_host'] }}"
+	{% endif %}
+	{% endif %}
+{% endfor %}
+
+{% for container in groups['compute_hosts'] %}
+  {% if nova_live_migration_interface is defined and hostvars[container]['ansible_' + nova_live_migration_interface] is defined and hostvars[container]['ansible_' + nova_live_migration_interface]['active'] == true %}
+	local-data: "{{ container }}-lm.{{ unbound_regional_zone }} A {{ hostvars[container]['ansible_' + nova_live_migration_interface]['ipv4']['address'] }}"
+  {% else %}
+	local-data: "{{ container }}-lm.{{ unbound_regional_zone }} A {{ hostvars[container]['ansible_ssh_host'] }}"
+  {% endif %}
+{% endfor %}
+
+{% for group_name in groups | difference(['all', 'all_containers']) %}
+  {%- for container in groups[group_name] %}
+	  {%- if hostvars[container]['ansible_ssh_host'] is defined %}
+        local-data: "{{ group_name }}.{{ unbound_regional_zone }} A {{ hostvars[container]['ansible_ssh_host'] }}"
+		{% endif %}
+  {% endfor %}
+{% endfor %}

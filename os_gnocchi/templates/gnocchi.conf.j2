@@ -1,0 +1,131 @@
+# {{ ansible_managed }}
+
+[DEFAULT]
+# Disable stderr logging
+use_stderr = False
+debug = {{ debug }}
+fatal_deprecations = {{ gnocchi_fatal_deprecations }}
+
+{% if gnocchi_ssl_external | bool %}
+[oslo_middleware]
+secure_proxy_ssl_header = {{ gnocchi_secure_proxy_ssl_header }}
+{% endif %}
+
+[indexer]
+url = mysql+pymysql://{{ gnocchi_galera_user }}:{{ gnocchi_container_mysql_password }}@{{ gnocchi_galera_address }}/{{ gnocchi_galera_database }}?charset=utf8
+
+{% if gnocchi_keystone_auth | bool %}
+[keystone_authtoken]
+insecure = {{ keystone_service_adminuri_insecure | bool }}
+auth_plugin = {{ gnocchi_keystone_auth_plugin }}
+signing_dir = /var/cache/gnocchi
+auth_url = {{ keystone_service_adminuri }}
+auth_uri = {{ keystone_service_internaluri }}
+region_name = {{ gnocchi_service_region }}
+project_domain_id = {{ gnocchi_service_project_domain_id }}
+user_domain_id = {{ gnocchi_service_user_domain_id }}
+project_name = {{ gnocchi_service_project_name }}
+username = {{ gnocchi_service_user_name }}
+password = {{ gnocchi_service_password }}
+
+memcached_servers = {{ memcached_servers }}
+token_cache_time = 300
+revocation_cache_time = 60
+
+# if your memcached server is shared, use these settings to avoid cache poisoning
+memcache_security_strategy = ENCRYPT
+memcache_secret_key = {{ memcached_encryption_key }}
+
+# if your keystone deployment uses PKI, and you value security over performance:
+check_revocations_for_cached = False
+{% endif %}
+
+[storage]
+driver = {{ gnocchi_storage_driver }}
+coordination_url = {{ gnocchi_coordination_url }}
+{% if gnocchi_storage_driver == 'file' %}
+############
+## File Storage
+############
+file_basepath = /var/lib/gnocchi
+file_basepath_tmp = ${file_basepath}/tmp
+{% endif %}
+{% if gnocchi_storage_driver == 'swift' %}
+############
+## Swift Storage
+############
+swift_auth_version: 3
+swift_authurl: "{{ keystone_service_internalurl }}"
+swift_endpoint_type: internalURL
+swift_user: "{{ gnocchi_service_user_name }}"
+swift_key: "{{ gnocchi_service_password }}"
+swift_region_name: "{{ gnocchi_service_region }}"
+swift_project_domain_id: "{{ gnocchi_service_project_domain_id }}"
+swift_user_domain_id: "{{ gnocchi_service_user_domain_id }}"
+swift_tenant_name: "{{ gnocchi_service_project_name }}"
+swift_container_prefix: gnocchi
+{% endif %}
+{% if gnocchi_storage_driver == 'ceph' %}
+############
+## Ceph Storage
+############
+# Ceph pool name to use. (string value)
+ceph_pool = {{ gnocchi_ceph_pool }}
+
+# Ceph username (ie: admin without "client." prefix).
+ceph_username = {{ gnocchi_ceph_username }}
+{% endif %}
+
+[metricd]
+# Number of workers for Gnocchi metric daemons. By default the available number
+# of CPU is used. (integer value)
+# Minimum value: 1
+#workers = 1
+
+[statsd]
+# The listen IP for statsd (string value)
+#host = 0.0.0.0
+
+# The port for statsd (port value)
+# Minimum value: 1
+# Maximum value: 65535
+#port = 8125
+
+# Resource UUID to use to identify statsd in Gnocchi (string value)
+#resource_id = <None>
+
+# User UUID to use to identify statsd in Gnocchi (string value)
+#user_id = <None>
+
+# Project UUID to use to identify statsd in Gnocchi (string value)
+#project_id = <None>
+
+# Archive policy name to use when creating metrics (string value)
+#archive_policy_name = <None>
+
+# Delay between flushes (floating point value)
+#flush_delay = <None>
+
+############
+## InfluxDB Storage
+############
+# InfluxDB host (string value)
+#influxdb_host = localhost
+
+# InfluxDB port (port value)
+# Minimum value: 1
+# Maximum value: 65535
+#influxdb_port = 8086
+
+# InfluxDB username (string value)
+#influxdb_username = root
+
+# InfluxDB password (string value)
+#influxdb_password = <None>
+
+# InfluxDB database (string value)
+#influxdb_database = gnocchi
+
+# InfluxDB ingests data in asynchroneous ways. Set to True to wait data are
+# ingested. (boolean value)
+#influxdb_block_until_data_ingested = false

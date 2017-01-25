@@ -1,0 +1,42 @@
+---
+# Copyright 2016, Logan Vig <logan2211@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- include: neutron_init_common.yml
+  vars:
+    program_name: "{{ neutron_services['calico-felix'].service_name }}"
+    program_config_options: "{{ neutron_services['calico-felix'].config_options }}"
+    service_name: "{{ neutron_service_name }}"
+    system_user: root
+    system_group: root
+    service_home: "{{ neutron_system_home_folder }}"
+  when:
+    - neutron_services['calico-felix']['group'] in group_names
+    - neutron_services['calico-felix'].service_en | bool
+  tags:
+    - upstart-init
+
+- include: neutron_init_common.yml
+  vars:
+    program_name: "{{ neutron_services['calico-dhcp-agent'].service_name }}"
+    program_config_options: "{{ neutron_services['calico-dhcp-agent'].config_options }}"
+    service_name: "{{ neutron_service_name }}"
+    system_user: root
+    system_group: root
+    service_home: "{{ neutron_system_home_folder }}"
+  when:
+    - neutron_services['calico-dhcp-agent']['group'] in group_names
+    - neutron_services['calico-dhcp-agent'].service_en | bool
+  tags:
+    - upstart-init

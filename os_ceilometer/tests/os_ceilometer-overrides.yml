@@ -1,0 +1,72 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+ceilometer_db_ip: "{{ hostvars[groups['mongo_all'][0]]['ansible_host'] }}"
+ceilometer_service_publicuri: "http://{{ hostvars[groups['ceilometer_all'][0]]['ansible_host'] }}:8777"
+ceilometer_service_publicurl: "{{ ceilometer_service_publicuri }}"
+ceilometer_service_internaluri: "http://{{ hostvars[groups['ceilometer_all'][0]]['ansible_host'] }}:8777"
+ceilometer_service_internalurl: "{{ ceilometer_service_internaluri }}"
+ceilometer_service_adminuri: "http://{{ hostvars[groups['ceilometer_all'][0]]['ansible_host'] }}:8777"
+ceilometer_service_adminurl: "{{ ceilometer_service_adminuri }}"
+ceilometer_rabbitmq_userid: ceilometer
+ceilometer_rabbitmq_password: secrete
+ceilometer_rabbitmq_vhost: /ceilometer
+ceilometer_rabbitmq_servers: "{{ rabbitmq_servers }}"
+ceilometer_venv_tag: "testing"
+ceilometer_developer_mode: True
+ceilometer_git_install_branch: stable/newton
+ceilometer_requirements_git_install_branch: stable/newton
+ceilometer_service_password: secrete
+ceilometer_telemetry_secret: secrete
+ceilometer_container_db_password: secrete
+
+# Tempest testing relies on glance notifications
+glance_ceilometer_enabled: True
+glance_rabbitmq_telemetry_host_group: rabbitmq_all
+glance_rabbitmq_telemetry_userid: glance
+glance_rabbitmq_telemetry_password: "{{ rabbitmq_password }}"
+glance_rabbitmq_telemetry_port: "{{ rabbitmq_port }}"
+glance_rabbitmq_telemetry_vhost: "/glance"
+
+# Used by the ceilometer role
+swift_system_user_name: swift
+swift_system_shell: /bin/false
+swift_system_comment: swift test user
+swift_system_home_folder: "/var/lib/{{ swift_system_user_name }}"
+
+tempest_git_install_branch: 35b062ebb9e62bbd482fba20c3e7a7a43992db69
+tempest_bin: "/opt/tempest_{{ tempest_venv_tag }}/bin"
+tempest_pip_packages:
+  - tempest
+  - junitxml
+  - nose
+  - pyOpenSSL # added from the os_tempest role defaults to support tempest plugin deps
+  - python-ceilometerclient
+  - python-cinderclient
+  - python-glanceclient
+  - python-heatclient
+  - python-keystoneclient
+  - python-memcached
+  - python-neutronclient
+  - python-novaclient
+  - python-openstackclient
+  - python-saharaclient
+  - python-subunit
+  - python-swiftclient
+
+tempest_plugins:
+  - name: tempest-ceilometer
+    repo: https://git.openstack.org/openstack/ceilometer
+    branch: stable/newton

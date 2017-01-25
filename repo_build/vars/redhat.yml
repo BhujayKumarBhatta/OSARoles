@@ -1,0 +1,44 @@
+---
+# Copyright 2016, @WalmartLabs
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+repo_build_distro_packages:
+  - '@Development Tools'
+  - cmake
+  - git
+  - krb5-devel              # required to build pykerberos
+  - liberasurecode-devel    # required to build pyeclib
+  - libffi-devel            # required to build xattr
+  - libjpeg-turbo-devel     # required to build pillow
+  - libvirt-devel           # required to build libvirt-python
+  - libxslt-devel           # required to build lxml
+  - lxc-devel               # required to build lxc-python2
+  - MariaDB-devel           # required to build MySQL-python
+  - openldap-devel          # required to build python-ldap
+  - postgresql-devel        # required to build psycopg2
+  - python2-devel
+  - openssl-devel           # required to build cryptography
+  - sqlite-devel            # required to build pysqlite
+  - swig
+  - which
+  - tar                     # required for /opt/op-venv-script.sh
+
+# required for liberasurecode-devel package
+repo_build_rdo_package: "https://rdoproject.org/repos/rdo-release.rpm"
+
+# workaround for https://github.com/pypa/virtualenv/issues/565
+repo_build_venv_command_options: >
+  {{ virtualenv_bin }}
+  --extra-search-dir {{ repo_build_release_path }}/{{ repo_build_release_tag }}
+  --never-download

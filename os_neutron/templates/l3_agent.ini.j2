@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+
+# General
+[DEFAULT]
+debug = {{ debug }}
+
+# While this option is deprecated in Liberty, if we remove it then it takes
+# a default value of 'br-ex', which we do not want. We therefore leave it
+# in place for now and can remove it in Mitaka.
+external_network_bridge = {{ neutron_external_network_bridge }}
+gateway_external_network_id = {{ neutron_gateway_external_network_id }}
+
+# Drivers
+interface_driver = {{ neutron_plugins[neutron_plugin_type].driver_interface }}
+
+agent_mode = {{ neutron_plugins[neutron_plugin_type].l3_agent_mode }}
+
+# Conventional failover
+allow_automatic_l3agent_failover = True
+
+# HA failover
+ha_confs_path = {{ neutron_system_home_folder }}/ha_confs
+ha_vrrp_advert_int = 2
+ha_vrrp_auth_password = {{ neutron_ha_vrrp_auth_password }}
+ha_vrrp_auth_type = {{ neutron_ha_vrrp_auth_type }}
+send_arp_for_ha = 3
+
+# Metadata
+enable_metadata_proxy = True

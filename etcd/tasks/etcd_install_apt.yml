@@ -1,0 +1,101 @@
+---
+# Copyright 2016, Logan Vig <logan2211@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Check apt last update file
+  stat:
+    path: /var/cache/apt
+  register: apt_cache_stat
+  tags:
+    - etcd-apt-packages
+
+- name: Update apt if needed
+  apt:
+    update_cache: yes
+  when: "ansible_date_time.epoch|float - apt_cache_stat.stat.mtime > {{cache_timeout}}"
+  tags:
+    - etcd-apt-packages
+
+- name: Add calico PPA apt-keys
+  apt_key:
+    id: "{{ item.hash_id }}"
+    keyserver: "{{ item.keyserver | default(omit) }}"
+    data: "{{ item.data | default(omit) }}"
+    url: "{{ item.url | default(omit) }}"
+    state: "present"
+  with_items: "{{ etcd_gpg_keys | default([]) }}"
+  register: add_keys
+  until: add_keys|success
+  retries: 5
+  delay: 2
+  ignore_errors: true
+  tags:
+    - etcd-apt-keys
+
+- name: Add etcd apt-keys using fallback source
+  apt_key:
+    id: "{{ item.hash_id }}"
+    keyserver: "{{ item.fallback_keyserver | default(omit) }}"
+    url: "{{ item.fallback_url | default(omit) }}"
+    state: "present"
+  register: add_keys_fallback
+  until: add_keys_fallback | success
+  retries: 5
+  delay: 2
+  with_items: "{{ etcd_gpg_keys | default([]) }}"
+  when: add_keys|failed and (item.fallback_keyserver is defined or item.fallback_url is defined)
+  tags:
+    - etcd-apt-keys
+
+- name: Drop etcd repo pin
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items: "{{ etcd_repo_pins | default([]) }}"
+  tags:
+    - etcd-repo-pin
+
+- name: Add etcd repo(s)
+  apt_repository:
+    repo: "{{ item.repo }}"
+    state: "{{ item.state }}"
+  with_items: "{{ etcd_apt_repo | default([]) }}"
+  register: add_repo
+  until: add_repo | success
+  retries: 5
+  delay: 2
+  tags:
+    - etcd-repos
+
+- name: Update apt if needed
+  apt:
+    update_cache: yes
+  when: add_repo | changed
+  tags:
+    - etcd-apt-packages
+
+- name: Install etcd packages
+  apt:
+    pkg: "{{ item }}"
+    state: "{{ etcd_package_state }}"
+  register: install_packages
+  until: install_packages | success
+  retries: 5
+  delay: 2
+  with_items: "{{ etcd_packages }}"
+  tags:
+    - etcd-apt-packages

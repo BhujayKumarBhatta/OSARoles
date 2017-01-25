@@ -1,0 +1,12 @@
+#!/bin/bash
+# {{ ansible_managed }}
+
+# This is a script to configure lxd system settings.
+# "/usr/bin/lxd init"
+
+/usr/bin/lxd init \
+  --auto \
+  --network-address={{ lxd_bind_address }} \
+  --network-port={{ lxd_bind_port }} \
+  --storage-backend={{ lxd_storage_backend }} \
+  --trust-password={{ lxd_trust_password }}

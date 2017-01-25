@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=glance openstack service
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User={{ glance_system_user_name }}
+Group={{ glance_system_group_name }}
+
+{% if program_override is defined %}
+ExecStart={{ program_override }} {{ program_config_options|default('') }} --log-file=/var/log/glance/{{ item.value.service_name }}.log
+{% else %}
+ExecStart={{ glance_bin }}/{{ item.value.service_name }} {{ program_config_options|default('') }} --log-file=/var/log/glance/{{ item.value.service_name }}.log
+{% endif %}
+
+# Give a reasonable amount of time for the server to start up/shut down
+TimeoutSec=300
+Restart=on-failure
+RestartSec=150
+
+[Install]
+WantedBy=multi-user.target
