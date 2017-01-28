@@ -28,7 +28,12 @@
     system: "yes"
     createhome: "yes"
     home: "{{ glance_system_user_home }}"
-
+- name: Inserted by Bhujay*******************to unmount nfs mount points
+  mount:
+    name: /var/lib/glance/images/
+    src: /10.0.0.15:/images
+    fstype: nfs
+    state: unmounted
 - name: Create glance dir
   file:
     path: "{{ item.path }}"
