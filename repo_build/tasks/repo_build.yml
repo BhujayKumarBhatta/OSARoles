@@ -39,8 +39,7 @@
  
 - name: inserted by bhujay for upgrading packaing to 16.8 before wheel is build 
   apt:
-    name: packaging
-    version: 16.8
+    name: packaging==16.8
     state: present
 
 - name: Create OpenStack-Ansible requirement wheels
@@ -67,6 +66,5 @@
     
 - name: inserted by bhujay for reverting back  packaing to 16.7 after  wheel is build 
   apt:
-    name: packaging
-    version: 16.7
+    name: packaging==16.7
     state: present
