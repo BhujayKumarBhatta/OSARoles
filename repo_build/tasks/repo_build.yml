@@ -38,8 +38,7 @@
     - repo-pip-download
  
 - name: inserted by bhujay for upgrading packaing to 16.8 before wheel is build 
-  apt:
-    apt:
+  pip:
     name: "{{ items }}"
     state: present
   with_items: 
@@ -68,7 +67,7 @@
     - repo-build-openstack-ansible-requirement-wheels
     
 - name: inserted by bhujay for reverting back  packaing to 16.7 after  wheel is build 
-  apt:
+  pip:
     name: "{{ items }}"
     state: present
   with_items: 
