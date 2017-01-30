@@ -70,6 +70,12 @@
   tags:
     - repo-build-constraints-file
 
+- name: testing packing instalation by pip module
+  pip:
+    name: packaging
+    version: 16.8
+    state: present
+
 - name: Install pip packages
   pip:
     name: "{{ repo_pip_packages | join(' ') }}"
