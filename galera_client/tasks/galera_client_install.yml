@@ -25,6 +25,13 @@
   tags:
     - install-yum
 
+- name: inserted by bhujay for upgrading packaing to 16.8 before pip package install, it failed for MSSQL
+  apt:
+    name: packaging
+    version: 16.8
+    state: present
+
+
 - name: Install pip packages
   pip:
     name: "{{ galera_client_pip_packages | join(' ') }}"
@@ -38,3 +45,9 @@
   delay: 2
   tags:
     - galera-client-pip-packages
+
+- name: inserted by bhujay revert back packaing to 16.7 pip installation of  MSSQL
+  apt:
+    name: packaging
+    version: 16.7
+    state: present    

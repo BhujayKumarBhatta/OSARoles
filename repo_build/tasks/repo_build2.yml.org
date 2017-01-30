@@ -36,12 +36,6 @@
   when: repo_build_store_pip_sources | bool
   tags:
     - repo-pip-download
- 
-- name: inserted by bhujay for upgrading packaing to 16.8 before wheel is build 
-  apt:
-    name: packaging
-    version: 16.8
-    state: present
 
 - name: Create OpenStack-Ansible requirement wheels
   shell: >
@@ -64,9 +58,3 @@
   tags:
     - repo-build-local-requirement-wheels
     - repo-build-openstack-ansible-requirement-wheels
-    
-- name: inserted by bhujay for reverting back  packaing to 16.7 after  wheel is build 
-  apt:
-    name: packaging
-    version: 16.7
-    state: present
