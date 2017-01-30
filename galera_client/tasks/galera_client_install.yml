@@ -27,8 +27,11 @@
 
 - name: inserted by bhujay for upgrading packaing to 16.8 before pip package install, it failed for MSSQL
   apt:
-    name: packaging==16.8
+    apt:
+    name: "{{ items }}"
     state: present
+  with_items: 
+    - packaging==16.8
 
 
 - name: Install pip packages
@@ -47,5 +50,8 @@
 
 - name: inserted by bhujay revert back packaing to 16.7 pip installation of  MSSQL
   apt:
-    name: packaging==16.7
-    state: present    
+    apt:
+    name: "{{ items }}"
+    state: present
+  with_items: 
+    - packaging==16.7   
