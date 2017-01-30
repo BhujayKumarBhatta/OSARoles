@@ -47,9 +47,9 @@
   tags:
     - galera-client-pip-packages
 
-- name: inserted by bhujay revert back packaing to 16.7 pip installation of  MSSQL
-  pip:
-    name: packaging
-    version: 16.7  
-    state: present
-   
+#- name: inserted by bhujay revert back packaing to 16.7 pip installation of  MSSQL
+#  pip:
+#    name: packaging
+#    version: 16.7  
+#    state: present
+#   
